@@ -27,7 +27,7 @@ builtins.print = _silent_print
 
 
 class RealESRGANVideoUpscaler:
-    def __init__(self, scale=4, model_name='RealESRGAN_x4plus', use_cuda=True):
+    def __init__(self, scale=4, model_name='RealESRGAN_x4plus', use_cuda=True, tile_size=512):
         """
         初始化 Real-ESRGAN 视频处理器
 
@@ -37,9 +37,14 @@ class RealESRGANVideoUpscaler:
                 - 'RealESRGAN_x4plus': 通用 x4 模型
                 - 'RealESRGAN_x2plus': 通用 x2 模型
                 - 'RealESRGAN_x4plus_anime_6B': 动漫专用 x4 模型
+            tile_size: 分块大小，0 表示不分块
+                - 0: 不分块（需要大显存，最快）
+                - 512: 推荐，稳定且快
+                - 256: 低显存使用
         """
         self.scale = scale
         self.use_cuda = use_cuda and torch.cuda.is_available()
+        self.tile_size = tile_size
 
         # 初始化模型
         model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23,
@@ -61,13 +66,13 @@ class RealESRGANVideoUpscaler:
             raise ValueError(f"不支持的模型: {model_name}")
 
         # 创建 Real-ESRGAN 处理器
-        # 使用 tile 分块处理，提高速度
-        tile_size = 256 if scale == 4 else 512
+        # tile_size=0 表示不分块，需要足够显存
+        actual_tile = self.tile_size if self.tile_size > 0 else 0
         self.upsampler = RealESRGANer(
             scale=netscale,
             model_path=model_path,
             model=model,
-            tile=tile_size,  # 使用分块处理，提高速度
+            tile=actual_tile,
             tile_pad=10,
             pre_pad=0,
             half=True,  # 开启半精度推理，加速
@@ -153,15 +158,13 @@ class RealESRGANVideoUpscaler:
         total_time = 0
         start_time = time.time()
 
-        # 进度保存间隔
-        save_interval = 100
+        # 进度保存间隔（增加以减少I/O）
+        save_interval = 500
 
         while True:
             ret, frame = cap.read()
             if not ret:
                 break
-
-            frame_start = time.time()
 
             # 处理帧
             enhanced = self.process_frame(frame)
@@ -173,8 +176,8 @@ class RealESRGANVideoUpscaler:
             total_time += frame_time
             processed_frames += 1
 
-            # 显示进度
-            if show_progress and processed_frames % 10 == 0:
+            # 显示进度（降低打印频率）
+            if show_progress and processed_frames % 50 == 0:
                 elapsed = time.time() - start_time
                 progress = processed_frames / frame_count * 100
                 fps_current = processed_frames / elapsed if elapsed > 0 else 0
@@ -225,6 +228,9 @@ def main():
                        help='模型名称')
     parser.add_argument('--no-cuda', action='store_true', help='禁用 CUDA')
     parser.add_argument('--resume', action='store_true', help='启用断点续传')
+    parser.add_argument('--tile-size', type=int, default=512,
+                       choices=[0, 256, 512, 768, 1024],
+                       help='分块大小 (0=不分块最快但需大显存, 512推荐)')
 
     args = parser.parse_args()
 
@@ -237,7 +243,8 @@ def main():
     upscaler = RealESRGANVideoUpscaler(
         scale=args.scale,
         model_name=args.model,
-        use_cuda=not args.no_cuda
+        use_cuda=not args.no_cuda,
+        tile_size=args.tile_size
     )
 
     # 处理视频
