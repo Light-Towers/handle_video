@@ -144,7 +144,11 @@ python3 -m pip install \
     PyYAML==6.0.3 \
     requests==2.32.5 \
     future==1.0.0 \
-    tqdm==4.67.3
+    tqdm==4.67.3 \
+    tb-nightly \
+    yapf \
+    facexlib>=0.2.5 \
+    gfpgan>=1.3.5
 
 log_info "依赖安装完成"
 
