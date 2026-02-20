@@ -41,8 +41,8 @@ PYTHON_VERSION=$(python3 --version 2>&1 | awk '{print $2}')
 PYTHON_MAJOR=$(echo $PYTHON_VERSION | cut -d. -f1)
 PYTHON_MINOR=$(echo $PYTHON_VERSION | cut -d. -f2)
 
-if [ "$PYTHON_MAJOR" -lt 3 ] || [ "$PYTHON_MAJOR" -eq 3 -a "$PYTHON_MINOR" -lt 11 ]; then
-    log_error "需要 Python 3.11 或更高版本，当前版本: $PYTHON_VERSION"
+if [ "$PYTHON_MAJOR" -lt 3 ] || [ "$PYTHON_MAJOR" -eq 3 -a "$PYTHON_MINOR" -lt 10 ]; then
+    log_error "需要 Python 3.10 或更高版本，当前版本: $PYTHON_VERSION"
     exit 1
 fi
 log_info "Python 版本检查通过: $PYTHON_VERSION"
@@ -117,16 +117,9 @@ else
         fi
     fi
 
-    # 安装对应 CUDA 版本的 PyTorch（云环境自带加速，无需指定 --index-url）
-    case $CUDA_VERSION in
-        "11.8")
-            python3 -m pip install torch==2.1.2+cu118 torchvision==0.16.2+cu118
-            ;;
-        *)
-            python3 -m pip install torch==2.1.2+cu121 torchvision==0.16.2+cu121
-            ;;
-    esac
-    log_info "PyTorch (CUDA $CUDA_VERSION) 安装成功"
+    # 安装 PyTorch（2.0+版本默认包含CUDA支持）
+    python3 -m pip install torch==2.1.2 torchvision==0.16.2
+    log_info "PyTorch 安装成功"
 fi
 
 # ========================================
