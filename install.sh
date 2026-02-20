@@ -145,7 +145,7 @@ python3 -m pip install \
     requests==2.32.5 \
     future==1.0.0 \
     tqdm==4.67.3 \
-    tb-nightly \
+    tensorboard \
     yapf \
     facexlib>=0.2.5 \
     gfpgan>=1.3.5
@@ -182,7 +182,8 @@ except ImportError as e:
 # 检查 realesrgan 导入
 try:
     import realesrgan
-    print(f"✓ realesrgan: {realesrgan.__version__}")
+    version = '.'.join(map(str, realesrgan.version_info))
+    print(f"✓ realesrgan: {version}")
 except ImportError as e:
     print(f"✗ realesrgan 导入失败: {e}")
     exit(1)
@@ -229,7 +230,8 @@ try:
     print(f"✓ torchvision: {torchvision.__version__}")
     print(f"✓ opencv: {cv2.__version__}")
     print(f"✓ numpy: {np.__version__}")
-    print(f"✓ realesrgan: {realesrgan.__version__}")
+    version = '.'.join(map(str, realesrgan.version_info))
+    print(f"✓ realesrgan: {version}")
     print(f"✓ basicsr: {basicsr.__version__}")
     print(f"✓ CUDA available: {torch.cuda.is_available()}")
     if torch.cuda.is_available():
