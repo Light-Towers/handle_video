@@ -109,13 +109,8 @@ if command -v nvcc &> /dev/null; then
         echo "  pip install torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu121"
     fi
 else
-    echo "无法自动检测 CUDA 版本，请手动选择:"
-    echo "  CUDA 11.8:"
-    echo "    pip install torch==2.1.2+cu118 torchvision==0.16.2+cu118"
-    echo "  CUDA 12.x:"
-    echo "    pip install torch==2.1.2+cu121 torchvision==0.16.2+cu121"
-    echo "  CPU:"
-    echo "    pip install torch==2.1.2 torchvision==0.16.2"
+    echo "无法自动检测 CUDA 版本，请手动安装:"
+    echo "  pip install torch==2.1.2 torchvision==0.16.2"
 fi
 
 echo ""

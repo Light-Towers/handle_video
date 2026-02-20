@@ -79,19 +79,10 @@ yum install -y ffmpeg
 
 #### 2. 安装 PyTorch
 
-**GPU 版本（CUDA 11.8）：**
-```bash
-pip install torch==2.1.2+cu118 torchvision==0.16.2+cu118
-```
-
-**GPU 版本（CUDA 12.x）：**
-```bash
-pip install torch==2.1.2+cu121 torchvision==0.16.2+cu121
-```
-
-**CPU 版本：**
+**PyTorch 2.0+（默认包含CUDA支持）：**
 ```bash
 pip install torch==2.1.2 torchvision==0.16.2
+```
 ```
 
 > **版本说明：**

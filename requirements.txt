@@ -17,8 +17,8 @@ basicsr==1.4.2
 # - 不需要修改源码
 #
 # 安装命令（云环境自带加速，无需指定 --index-url）:
-#   CUDA 11.8: pip install torch==2.1.2+cu118 torchvision==0.16.2+cu118
-#   CUDA 12.x: pip install torch==2.1.2+cu121 torchvision==0.16.2+cu121
+#   PyTorch 2.x 安装 (默认包含CUDA支持):
+#   pip install torch==2.1.2 torchvision==0.16.2
 #   CPU:      pip install torch==2.1.2 torchvision==0.16.2
 #
 # 注意：本 requirements.txt 只列出核心依赖，实际安装时请使用 install.sh 自动检测 CUDA 版本
@@ -63,13 +63,8 @@ tqdm==4.67.3
 #
 # 手动安装步骤:
 #
-# 1. 安装 PyTorch（云环境自带加速，无需指定 --index-url）:
-#    GPU 环境 (CUDA 12.x):
-#      pip install torch==2.1.2+cu121 torchvision==0.16.2+cu121
-#    GPU 环境 (CUDA 11.8):
-#      pip install torch==2.1.2+cu118 torchvision==0.16.2+cu118
-#    CPU 环境:
-#      pip install torch==2.1.2 torchvision==0.16.2
+# 1. 安装 PyTorch（2.0+ 默认包含CUDA支持）:
+#    pip install torch==2.1.2 torchvision==0.16.2
 #
 # 2. 安装其他依赖:
 #    pip install realesrgan==0.3.0 basicsr==1.4.2 opencv-python==4.10.0.84 numpy==1.26.4 \
