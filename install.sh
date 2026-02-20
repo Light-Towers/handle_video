@@ -28,7 +28,7 @@ log_error() {
 
 # 检测参数
 USE_CPU=false
-if [[ "$1" == "--cpu" ]]; then
+if [ "$1" = "--cpu" ]; then
     USE_CPU=true
     log_warn "使用 CPU 模式安装 PyTorch"
 fi
@@ -41,7 +41,7 @@ PYTHON_VERSION=$(python3 --version 2>&1 | awk '{print $2}')
 PYTHON_MAJOR=$(echo $PYTHON_VERSION | cut -d. -f1)
 PYTHON_MINOR=$(echo $PYTHON_VERSION | cut -d. -f2)
 
-if [[ "$PYTHON_MAJOR" -lt 3 ]] || [[ "$PYTHON_MAJOR" -eq 3 && "$PYTHON_MINOR" -lt 11 ]]; then
+if [ "$PYTHON_MAJOR" -lt 3 ] || [ "$PYTHON_MAJOR" -eq 3 -a "$PYTHON_MINOR" -lt 11 ]; then
     log_error "需要 Python 3.11 或更高版本，当前版本: $PYTHON_VERSION"
     exit 1
 fi
@@ -85,13 +85,16 @@ else
         log_info "检测到系统 CUDA: $SYSTEM_CUDA"
 
         # 判断使用哪个 CUDA 版本的 PyTorch
-        if [[ "$SYSTEM_CUDA" == "11.8" ]] || [[ "$SYSTEM_CUDA" == "11."* ]]; then
-            CUDA_VERSION="11.8"
-            log_info "使用 CUDA 11.8 版本的 PyTorch"
-        else
-            CUDA_VERSION="12.1"
-            log_info "使用 CUDA 12.1 版本的 PyTorch"
-        fi
+        case "$SYSTEM_CUDA" in
+            11.8|11.*)
+                CUDA_VERSION="11.8"
+                log_info "使用 CUDA 11.8 版本的 PyTorch"
+                ;;
+            *)
+                CUDA_VERSION="12.1"
+                log_info "使用 CUDA 12.1 版本的 PyTorch"
+                ;;
+        esac
     else
         # 通过 nvidia-smi 检测
         if command -v nvidia-smi &> /dev/null; then
@@ -99,13 +102,16 @@ else
             log_info "通过 nvidia-smi 检测到 CUDA: $NVIDIA_SMI"
 
             # CUDA 11.x 使用 cu118，否则使用 cu121
-            if [[ "$NVIDIA_SMI" == "11.8" ]] || [[ "$NVIDIA_SMI" == "11."* ]]; then
-                CUDA_VERSION="11.8"
-                log_info "使用 CUDA 11.8 版本的 PyTorch"
-            else
-                CUDA_VERSION="12.1"
-                log_info "使用 CUDA 12.1 版本的 PyTorch"
-            fi
+            case "$NVIDIA_SMI" in
+                11.8|11.*)
+                    CUDA_VERSION="11.8"
+                    log_info "使用 CUDA 11.8 版本的 PyTorch"
+                    ;;
+                *)
+                    CUDA_VERSION="12.1"
+                    log_info "使用 CUDA 12.1 版本的 PyTorch"
+                    ;;
+            esac
         else
             log_warn "无法检测 CUDA 版本，使用默认 CUDA 12.1"
         fi
@@ -199,7 +205,7 @@ log_info "检查 Real-ESRGAN 模型..."
 REAL_ESRGAN_DIR="$HOME/.realesrgan"
 REAL_ESRGAN_MODEL="$REAL_ESRGAN_DIR/RealESRGAN_x4plus.pth"
 
-if [[ ! -f "$REAL_ESRGAN_MODEL" ]]; then
+if [ ! -f "$REAL_ESRGAN_MODEL" ]; then
     log_info "下载 Real-ESRGAN x4plus 模型..."
     mkdir -p "$REAL_ESRGAN_DIR"
     cd "$REAL_ESRGAN_DIR"
