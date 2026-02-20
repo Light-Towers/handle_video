@@ -149,8 +149,7 @@ python3 -m pip install \
     tqdm==4.67.3 \
     tensorboard \
     yapf \
-    "facexlib>=0.2.5" \
-    "gfpgan>=1.3.5"
+    "facexlib>=0.2.5"
 
 log_info "依赖安装完成"
 

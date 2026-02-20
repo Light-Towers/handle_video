@@ -76,8 +76,8 @@ tqdm==4.67.3
 #    CentOS: yum install ffmpeg
 #
 # 4. 模型下载 (首次运行自动下载):
-#    mkdir -p ~/.realesrgan
-#    wget -P ~/.realesrgan https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth
+#    mkdir -p ./models
+#    wget -P ./models https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth
 #
 # ========================================
 # 版本兼容性说明

@@ -120,8 +120,8 @@ python3 -c "import torch, torchvision, realesrgan, basicsr; print('所有依赖�
 #### 5. 下载 Real-ESRGAN 模型
 
 ```bash
-mkdir -p ~/.realesrgan
-wget -P ~/.realesrgan https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth
+mkdir -p models
+wget -P models https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth
 ```
 
 ### 使用脚本处理视频
