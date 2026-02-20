@@ -70,17 +70,58 @@ fi
 # 3. 安装 PyTorch
 # ========================================
 log_info "安装 PyTorch..."
+
 if [ "$USE_CPU" = true ]; then
-    python3 -m pip install torch==2.7.1 torchvision==0.22.1 --index-url https://download.pytorch.org/whl/cpu
+    # CPU 版本
+    python3 -m pip install torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cpu
+    log_info "PyTorch (CPU) 安装成功"
 else
-    # 尝试检测 CUDA 版本
+    # 自动检测 CUDA 版本
+    CUDA_VERSION="12.1"  # 默认使用 CUDA 12.1
+
+    # 检测系统 CUDA 版本
     if command -v nvcc &> /dev/null; then
-        CUDA_VERSION=$(nvcc --version | grep "release" | awk '{print $5}' | cut -d',' -f1)
-        log_info "检测到 CUDA: $CUDA_VERSION"
+        SYSTEM_CUDA=$(nvcc --version | grep "release" | awk '{print $5}' | cut -d',' -f1)
+        log_info "检测到系统 CUDA: $SYSTEM_CUDA"
+
+        # 判断使用哪个 CUDA 版本的 PyTorch
+        if [[ "$SYSTEM_CUDA" == "11.8" ]] || [[ "$SYSTEM_CUDA" == "11."* ]]; then
+            CUDA_VERSION="11.8"
+            log_info "使用 CUDA 11.8 版本的 PyTorch"
+        else
+            CUDA_VERSION="12.1"
+            log_info "使用 CUDA 12.1 版本的 PyTorch"
+        fi
+    else
+        # 通过 nvidia-smi 检测
+        if command -v nvidia-smi &> /dev/null; then
+            NVIDIA_SMI=$(nvidia-smi | grep "CUDA Version" | awk '{print $9}')
+            log_info "通过 nvidia-smi 检测到 CUDA: $NVIDIA_SMI"
+
+            # CUDA 11.x 使用 cu118，否则使用 cu121
+            if [[ "$NVIDIA_SMI" == "11.8" ]] || [[ "$NVIDIA_SMI" == "11."* ]]; then
+                CUDA_VERSION="11.8"
+                log_info "使用 CUDA 11.8 版本的 PyTorch"
+            else
+                CUDA_VERSION="12.1"
+                log_info "使用 CUDA 12.1 版本的 PyTorch"
+            fi
+        else
+            log_warn "无法检测 CUDA 版本，使用默认 CUDA 12.1"
+        fi
     fi
-    python3 -m pip install torch==2.7.1 torchvision==0.22.1 --index-url https://download.pytorch.org/whl/cu121
+
+    # 安装对应 CUDA 版本的 PyTorch
+    case $CUDA_VERSION in
+        "11.8")
+            python3 -m pip install torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu118
+            ;;
+        *)
+            python3 -m pip install torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu121
+            ;;
+    esac
+    log_info "PyTorch (CUDA $CUDA_VERSION) 安装成功"
 fi
-log_info "PyTorch 安装成功"
 
 # ========================================
 # 4. 安装其他依赖
@@ -109,24 +150,46 @@ python3 -m pip install \
 log_info "依赖安装完成"
 
 # ========================================
-# 5. 修复兼容性问题
+# 5. 验证兼容性
 # ========================================
-log_info "修复 torchvision API 兼容性问题..."
+log_info "验证版本兼容性..."
+python3 << EOF
+import warnings
+warnings.filterwarnings('ignore')
 
-# 查找 basicsr 安装路径
-BASICSR_PATH=$(python3 -c "import basicsr; print(basicsr.__file__)" 2>/dev/null | sed 's/__init__.py//')
-DEGRADATIONS_FILE="$BASICSR_PATH/data/degradations.py"
+import torchvision
+print(f"torchvision: {torchvision.__version__}")
 
-if [[ -f "$DEGRADATIONS_FILE" ]]; then
-    log_info "修改文件: $DEGRADATIONS_FILE"
-    if grep -q "from torchvision.transforms.functional_tensor import rgb_to_grayscale" "$DEGRADATIONS_FILE"; then
-        sed -i 's/from torchvision.transforms.functional_tensor import rgb_to_grayscale/from torchvision.transforms._functional_tensor import rgb_to_grayscale/g' "$DEGRADATIONS_FILE"
-        log_info "兼容性问题修复成功"
-    else
-        log_info "兼容性问题已修复或无需修复"
-    fi
-else
-    log_warn "未找到 degradations.py 文件，跳过修复"
+# 检查 functional_tensor 模块是否存在
+try:
+    from torchvision.transforms.functional_tensor import rgb_to_grayscale
+    print("✓ torchvision.functional_tensor 模块存在")
+except ImportError:
+    print("✗ torchvision.functional_tensor 模块不存在")
+    exit(1)
+
+# 检查 basicsr 导入
+try:
+    import basicsr
+    print(f"✓ basicsr: {basicsr.__version__}")
+except ImportError as e:
+    print(f"✗ basicsr 导入失败: {e}")
+    exit(1)
+
+# 检查 realesrgan 导入
+try:
+    import realesrgan
+    print(f"✓ realesrgan: {realesrgan.__version__}")
+except ImportError as e:
+    print(f"✗ realesrgan 导入失败: {e}")
+    exit(1)
+
+print("\n版本兼容性验证通过！")
+EOF
+
+if [ $? -ne 0 ]; then
+    log_error "版本兼容性验证失败"
+    exit 1
 fi
 
 # ========================================

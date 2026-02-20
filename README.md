@@ -29,12 +29,27 @@ handle_video/
 
 ## 快速开始
 
+### 环境检测
+
+在安装前，可以先检测系统环境：
+
+```bash
+bash check_cuda.sh
+```
+
+这个脚本会：
+- 检测系统 CUDA 版本
+- 检测 GPU 型号
+- 验证 PyTorch CUDA 版本可用性
+- 测试当前环境兼容性
+- 给出推荐安装命令
+
 ### 方法一：一键安装（推荐）
 
 使用自动安装脚本处理所有依赖和兼容性问题：
 
 ```bash
-# GPU 环境（CUDA 12.x）
+# GPU 环境（自动检测 CUDA 版本）
 bash install.sh
 
 # CPU 环境
@@ -64,15 +79,26 @@ yum install -y ffmpeg
 
 #### 2. 安装 PyTorch
 
+**GPU 版本（CUDA 11.8）：**
+```bash
+pip install torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu118
+```
+
 **GPU 版本（CUDA 12.x）：**
 ```bash
-pip install torch==2.7.1 torchvision==0.22.1 --index-url https://download.pytorch.org/whl/cu121
+pip install torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu121
 ```
 
 **CPU 版本：**
 ```bash
-pip install torch==2.7.1 torchvision==0.22.1 --index-url https://download.pytorch.org/whl/cpu
+pip install torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cpu
 ```
+
+> **版本说明：**
+> - 推荐：torch 2.1.2 + torchvision 0.16.2（与 basicsr 1.4.2 兼容，无需修改源码）
+> - 支持 CUDA 11.8 和 CUDA 12.x
+> - 使用 `install.sh` 脚本会自动检测 CUDA 版本
+> - 不推荐：torch 2.7.x + torchvision 0.22.x（需要修改源码）
 
 #### 3. 安装依赖
 
@@ -86,24 +112,10 @@ pip install opencv-python==4.10.0.84 numpy==1.26.4 Pillow==11.3.0 scipy==1.17.0 
     requests==2.32.5 future==1.0.0 tqdm==4.67.3
 ```
 
-#### 4. 修复兼容性问题
-
-修改 basicsr 文件以适配新版 torchvision：
+#### 4. 验证安装
 
 ```bash
-# 找到 basicsr 安装路径
-python3 -c "import basicsr; import os; print(os.path.dirname(basicsr.__file__))"
-
-# 编辑文件: {basicsr_path}/data/degradations.py
-# 将第 8 行修改为:
-# from torchvision.transforms._functional_tensor import rgb_to_grayscale
-```
-
-或者使用 sed 自动修复：
-```bash
-BASICSR_PATH=$(python3 -c "import basicsr; import os; print(os.path.dirname(basicsr.__file__))")
-sed -i 's/from torchvision.transforms.functional_tensor import rgb_to_grayscale/from torchvision.transforms._functional_tensor import rgb_to_grayscale/g' \
-    "$BASICSR_PATH/data/degradations.py"
+python3 -c "import torch, torchvision, realesrgan, basicsr; print('所有依赖安装成功')"
 ```
 
 #### 5. 下载 Real-ESRGAN 模型
@@ -144,10 +156,24 @@ python scripts/merge_audio.py -v processed.mp4 -o original.mp4 -out final.mp4
 
 ## 环境要求
 
+### 硬件要求
 - **GPU**: NVIDIA Tesla T4 或更高（Real-ESRGAN 需要）
-- **CUDA**: 12.1+
+- **内存**: 建议 8GB+ GPU 显存
+
+### 软件要求
+- **CUDA**: 11.8 或 12.x
 - **Python**: 3.11+
 - **ffmpeg**: 用于音视频处理
+- **操作系统**: Linux / macOS / Windows (WSL)
+
+### CUDA 版本支持
+
+| CUDA 版本 | PyTorch 版本 | torchvision 版本 | 兼容性 |
+|-----------|-------------|-----------------|--------|
+| 11.8 | 2.1.2 | 0.16.2 | ✅ 支持 |
+| 12.x | 2.1.2 | 0.16.2 | ✅ 支持 |
+
+**说明：** 项目同时支持 CUDA 11.8 和 CUDA 12.x，使用 `install.sh` 会自动检测并选择合适的版本。
 
 ## 常见问题
 
@@ -155,19 +181,17 @@ python scripts/merge_audio.py -v processed.mp4 -o original.mp4 -out final.mp4
 
 ### 已知兼容性问题
 
-#### torchvision API 变更 (v0.22.x)
+#### torchvision 版本兼容性
 
-**问题：** basicsr 1.4.2 使用的 `torchvision.transforms.functional_tensor` 在 torchvision 0.22+ 中被重命名为 `_functional_tensor`
+| torch | torchvision | basicsr 1.4.2 | 状态 | 说明 |
+|-------|-------------|---------------|------|------|
+| 2.1.2 | 0.16.2 | ✓ | ✅ 推荐 | 无需修改源码 |
+| 2.7.1 | 0.22.1 | ✗ | ❌ 不推荐 | 需要修改源码 |
 
-**错误信息：**
-```
-ModuleNotFoundError: No module named 'torchvision.transforms.functional_tensor'
-```
-
-**解决方案：**
-1. 使用一键安装脚本（自动修复）
-2. 或手动修改 degradations.py（详见安装说明）
-3. 或降级 torchvision 到 0.15.x 版本
+**原因：**
+- torchvision 0.17+ 移除了 `functional_tensor` 模块
+- basicsr 1.4.2 依赖此模块
+- 使用推荐版本组合可避免兼容性问题
 
 #### basicsr 构建隔离问题
 
@@ -177,15 +201,6 @@ ModuleNotFoundError: No module named 'torchvision.transforms.functional_tensor'
 ```
 ModuleNotFoundError: No module named 'torch'
 ```
-
-**解决方案：**
-```bash
-pip install --no-deps basicsr==1.4.2
-```
-
-#### pip 构建依赖冲突
-
-**问题：** basicsr 某些版本依赖 `tb-nightly`，但该包不存在
 
 **解决方案：**
 ```bash
