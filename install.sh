@@ -8,7 +8,9 @@
 
 set -e  # 遇到错误立即退出
 
-# 颜色输出
+# 获取脚本所在目录
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+MODEL_DIR="$SCRIPT_DIR/models"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -200,7 +202,7 @@ fi
 # 6. 下载 Real-ESRGAN 模型
 # ========================================
 log_info "检查 Real-ESRGAN 模型..."
-REAL_ESRGAN_DIR="$HOME/.realesrgan"
+REAL_ESRGAN_DIR="$MODEL_DIR"
 REAL_ESRGAN_MODEL="$REAL_ESRGAN_DIR/RealESRGAN_x4plus.pth"
 
 if [ ! -f "$REAL_ESRGAN_MODEL" ]; then

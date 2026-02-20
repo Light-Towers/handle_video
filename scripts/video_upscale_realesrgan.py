@@ -37,15 +37,16 @@ class RealESRGANVideoUpscaler:
                        num_grow_ch=32, scale=scale)
         netscale = scale
 
-        # 选择模型路径
+        # 选择模型路径（从脚本所在目录的 models 文件夹）
+        script_dir = Path(__file__).parent.parent
         if model_name == 'RealESRGAN_x4plus':
-            model_path = '/root/.realesrgan/RealESRGAN_x4plus.pth'
+            model_path = str(script_dir / 'models' / 'RealESRGAN_x4plus.pth')
             netscale = 4
         elif model_name == 'RealESRGAN_x2plus':
-            model_path = '/root/.realesrgan/RealESRGAN_x2plus.pth'
+            model_path = str(script_dir / 'models' / 'RealESRGAN_x2plus.pth')
             netscale = 2
         elif model_name == 'RealESRGAN_x4plus_anime_6B':
-            model_path = '/root/.realesrgan/RealESRGAN_x4plus_anime_6B.pth'
+            model_path = str(script_dir / 'models' / 'RealESRGAN_x4plus_anime_6B.pth')
             netscale = 4
         else:
             raise ValueError(f"不支持的模型: {model_name}")
