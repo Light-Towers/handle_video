@@ -137,8 +137,8 @@ python3 -m pip install \
     opencv-python==4.10.0.84 \
     numpy==1.26.4 \
     Pillow==11.3.0 \
-    scipy==1.17.0 \
-    scikit-image==0.26.0 \
+    scipy==1.14.1 \
+    scikit-image==0.24.0 \
     addict==2.4.0 \
     lmdb==1.7.5 \
     PyYAML==6.0.3 \
