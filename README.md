@@ -81,17 +81,17 @@ yum install -y ffmpeg
 
 **GPU 版本（CUDA 11.8）：**
 ```bash
-pip install torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu118
+pip install torch==2.1.2+cu118 torchvision==0.16.2+cu118
 ```
 
 **GPU 版本（CUDA 12.x）：**
 ```bash
-pip install torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu121
+pip install torch==2.1.2+cu121 torchvision==0.16.2+cu121
 ```
 
 **CPU 版本：**
 ```bash
-pip install torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cpu
+pip install torch==2.1.2 torchvision==0.16.2
 ```
 
 > **版本说明：**
@@ -112,7 +112,15 @@ pip install opencv-python==4.10.0.84 numpy==1.26.4 Pillow==11.3.0 scipy==1.17.0 
     requests==2.32.5 future==1.0.0 tqdm==4.67.3
 ```
 
-#### 4. 验证安装
+#### 4. 安装其他依赖
+
+```bash
+pip install realesrgan==0.3.0 basicsr==1.4.2 opencv-python==4.10.0.84 numpy==1.26.4 \
+    Pillow==11.3.0 scipy==1.17.0 scikit-image==0.26.0 addict==2.4.0 lmdb==1.7.5 \
+    PyYAML==6.0.3 requests==2.32.5 future==1.0.0 tqdm==4.67.3
+```
+
+#### 5. 验证安装
 
 ```bash
 python3 -c "import torch, torchvision, realesrgan, basicsr; print('所有依赖安装成功')"

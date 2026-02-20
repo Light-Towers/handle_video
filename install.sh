@@ -73,7 +73,7 @@ log_info "安装 PyTorch..."
 
 if [ "$USE_CPU" = true ]; then
     # CPU 版本
-    python3 -m pip install torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cpu
+    python3 -m pip install torch==2.1.2 torchvision==0.16.2
     log_info "PyTorch (CPU) 安装成功"
 else
     # 自动检测 CUDA 版本
@@ -111,13 +111,13 @@ else
         fi
     fi
 
-    # 安装对应 CUDA 版本的 PyTorch
+    # 安装对应 CUDA 版本的 PyTorch（云环境自带加速，无需指定 --index-url）
     case $CUDA_VERSION in
         "11.8")
-            python3 -m pip install torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu118
+            python3 -m pip install torch==2.1.2+cu118 torchvision==0.16.2+cu118
             ;;
         *)
-            python3 -m pip install torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu121
+            python3 -m pip install torch==2.1.2+cu121 torchvision==0.16.2+cu121
             ;;
     esac
     log_info "PyTorch (CUDA $CUDA_VERSION) 安装成功"

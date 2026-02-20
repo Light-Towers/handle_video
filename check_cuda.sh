@@ -111,11 +111,11 @@ if command -v nvcc &> /dev/null; then
 else
     echo "无法自动检测 CUDA 版本，请手动选择:"
     echo "  CUDA 11.8:"
-    echo "    pip install torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu118"
+    echo "    pip install torch==2.1.2+cu118 torchvision==0.16.2+cu118"
     echo "  CUDA 12.x:"
-    echo "    pip install torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu121"
+    echo "    pip install torch==2.1.2+cu121 torchvision==0.16.2+cu121"
     echo "  CPU:"
-    echo "    pip install torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cpu"
+    echo "    pip install torch==2.1.2 torchvision==0.16.2"
 fi
 
 echo ""
