@@ -14,7 +14,16 @@ import argparse
 import time
 import json
 import os
+import builtins
 from pathlib import Path
+
+# 屏蔽 realesrgan 库内部的 Tile 信息
+_original_print = builtins.print
+def _silent_print(*args, **kwargs):
+    if args and isinstance(args[0], str) and 'Tile' in str(args[0]):
+        return
+    return _original_print(*args, **kwargs)
+builtins.print = _silent_print
 
 
 class RealESRGANVideoUpscaler:
