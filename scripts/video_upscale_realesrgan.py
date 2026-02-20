@@ -166,6 +166,7 @@ class RealESRGANVideoUpscaler:
             if not ret:
                 break
 
+            frame_start = time.time()
             # 处理帧
             enhanced = self.process_frame(frame)
 
