@@ -27,7 +27,7 @@ builtins.print = _silent_print
 
 
 class RealESRGANVideoUpscaler:
-    def __init__(self, scale=4, model_name='RealESRGAN_x4plus', use_cuda=True, tile_size=512):
+    def __init__(self, scale=4, model_name='RealESRGAN_x4plus', use_cuda=True, tile_size=512, codec='mp4v'):
         """
         初始化 Real-ESRGAN 视频处理器
 
@@ -41,29 +41,69 @@ class RealESRGANVideoUpscaler:
                 - 0: 不分块（需要大显存，最快）
                 - 512: 推荐，稳定且快
                 - 256: 低显存使用
+            codec: 视频编码器
+                - 'mp4v': MPEG-4 Visual (默认，兼容性好)
+                - 'MJPG': MJPEG (无压缩，文件大，速度快)
+                - 'vp09': VP9 (压缩率高，Web 优化)
         """
         self.scale = scale
         self.use_cuda = use_cuda and torch.cuda.is_available()
         self.tile_size = tile_size
-
-        # 初始化模型
-        model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23,
-                       num_grow_ch=32, scale=scale)
-        netscale = scale
+        self.codec = codec
 
         # 选择模型路径（从脚本所在目录的 models 文件夹）
         script_dir = Path(__file__).parent.parent
+
+        # 根据模型名称设置参数
         if model_name == 'RealESRGAN_x4plus':
             model_path = str(script_dir / 'models' / 'RealESRGAN_x4plus.pth')
             netscale = 4
+            num_in_ch = 3
+            num_out_ch = 3
+            num_feat = 64
+            num_block = 23
+            num_grow_ch = 32
         elif model_name == 'RealESRGAN_x2plus':
             model_path = str(script_dir / 'models' / 'RealESRGAN_x2plus.pth')
             netscale = 2
+            num_in_ch = 3
+            num_out_ch = 3
+            num_feat = 64
+            num_block = 23
+            num_grow_ch = 32
         elif model_name == 'RealESRGAN_x4plus_anime_6B':
             model_path = str(script_dir / 'models' / 'RealESRGAN_x4plus_anime_6B.pth')
             netscale = 4
+            num_in_ch = 3
+            num_out_ch = 3
+            num_feat = 64
+            num_block = 6
+            num_grow_ch = 32
         else:
             raise ValueError(f"不支持的模型: {model_name}")
+
+        # 验证 scale 和 model 的兼容性
+        if model_name == 'RealESRGAN_x4plus':
+            valid_scales = [2, 4]
+        elif model_name == 'RealESRGAN_x2plus':
+            valid_scales = [2]
+        elif model_name == 'RealESRGAN_x4plus_anime_6B':
+            valid_scales = [4]
+
+        if scale not in valid_scales:
+            raise ValueError(f"{model_name} 模型只支持 {valid_scales}x 输出，不支持 {scale}x")
+
+        # 如果模型不存在，尝试从 .realesrgan 目录加载
+        if not Path(model_path).exists():
+            fallback_path = str(script_dir / '.realesrgan' / f'{model_name}.pth')
+            if Path(fallback_path).exists():
+                model_path = fallback_path
+            else:
+                raise FileNotFoundError(f"找不到模型文件: {model_path} 和 {fallback_path}")
+
+        # 初始化模型
+        model = RRDBNet(num_in_ch=num_in_ch, num_out_ch=num_out_ch, num_feat=num_feat,
+                       num_block=num_block, num_grow_ch=num_grow_ch, scale=netscale)
 
         # 创建 Real-ESRGAN 处理器
         # tile_size=0 表示不分块，需要足够显存
@@ -81,7 +121,8 @@ class RealESRGANVideoUpscaler:
 
         print(f"Real-ESRGAN 初始化完成")
         print(f"  模型: {model_name}")
-        print(f"  放大倍数: {netscale}")
+        print(f"  模型倍数: {netscale}")
+        print(f"  输出倍数: {self.scale}")
         print(f"  设备: {'CUDA' if self.use_cuda else 'CPU'}")
         print(f"  GPU: {torch.cuda.get_device_name(0) if self.use_cuda else 'N/A'}")
 
@@ -139,7 +180,7 @@ class RealESRGANVideoUpscaler:
 
         # 创建输出视频写入器
         # 如果是续传模式，检查输出文件是否存在并追加
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        fourcc = cv2.VideoWriter_fourcc(*self.codec)
         out_width = width * self.scale
         out_height = height * self.scale
 
@@ -222,7 +263,7 @@ def main():
     parser.add_argument('input', type=str, help='输入视频路径')
     parser.add_argument('-o', '--output', type=str, help='输出视频路径')
     parser.add_argument('-s', '--scale', type=int, default=4,
-                       choices=[2, 4, 8], help='放大倍数 (2, 4, 8)')
+                       choices=[2, 4], help='放大倍数 (2, 4)')
     parser.add_argument('-m', '--model', type=str, default='RealESRGAN_x4plus',
                        choices=['RealESRGAN_x4plus', 'RealESRGAN_x2plus',
                                'RealESRGAN_x4plus_anime_6B'],
@@ -232,6 +273,9 @@ def main():
     parser.add_argument('--tile-size', type=int, default=512,
                        choices=[0, 256, 512, 768, 1024],
                        help='分块大小 (0=不分块最快但需大显存, 512推荐)')
+    parser.add_argument('--codec', type=str, default='mp4v',
+                       choices=['mp4v', 'MJPG', 'vp09'],
+                       help='视频编码器 (mp4v=兼容性好, MJPG=无压缩大文件, vp09=压缩率高)')
 
     args = parser.parse_args()
 
@@ -245,7 +289,8 @@ def main():
         scale=args.scale,
         model_name=args.model,
         use_cuda=not args.no_cuda,
-        tile_size=args.tile_size
+        tile_size=args.tile_size,
+        codec=args.codec
     )
 
     # 处理视频
