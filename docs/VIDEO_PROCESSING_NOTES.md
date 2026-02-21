@@ -50,7 +50,7 @@ apt-get install mesa-vulkan-drivers
 pip3 install realesrgan basicsr facexlib gfpgan tqdm
 pip3 install torchvision
 
-# 修复 basicsr 兼容性
+# 修复 basicsr 兼容性（如果使用不兼容版本）
 sed -i 's/from torchvision.transforms.functional_tensor import rgb_to_grayscale/from torchvision.transforms.functional import rgb_to_grayscale/g' \
   /root/.pyenv/versions/3.11.1/lib/python3.11/site-packages/basicsr/data/degradations.py
 
@@ -61,7 +61,17 @@ apt-get update && apt-get install -y ffmpeg
 #### 使用方法
 
 ```bash
-python3 /workspace/video_upscale_realesrgan.py /workspace/input.mp4 -o /workspace/output.mp4 -s 4
+# 基本用法（x4 放大）
+python3 handle_video/scripts/video_upscale_realesrgan.py input.mp4 -o output.mp4 -s 4
+
+# x2 放大（更快）
+python3 handle_video/scripts/video_upscale_realesrgan.py input.mp4 -o output.mp4 -s 2 -m RealESRGAN_x2plus
+
+# 动漫视频
+python3 handle_video/scripts/video_upscale_realesrgan.py input.mp4 -o output.mp4 -s 4 -m RealESRGAN_x4plus_anime_6B
+
+# 启用断点续传
+python3 handle_video/scripts/video_upscale_realesrgan.py input.mp4 -o output.mp4 -s 4 --resume
 ```
 
 #### 性能
@@ -92,7 +102,7 @@ RealESRGANer(
 #### 使用方法
 
 ```bash
-python3 /workspace/video_upscale_bicubic.py -i input.mp4 -o output.mp4 -s 4
+python3 handle_video/scripts/video_upscale_bicubic.py -i input.mp4 -o output.mp4 -s 4
 ```
 
 #### 性能
@@ -153,7 +163,7 @@ cmd = [
 ### 使用
 
 ```bash
-python3 /workspace/merge_audio.py -v processed.mp4 -o original.mp4 -out output_final.mp4
+python3 handle_video/scripts/merge_audio.py -v processed.mp4 -o original.mp4 -out output_final.mp4
 ```
 
 ---
@@ -194,36 +204,36 @@ ffmpeg -i input.mp4 \
 
 ```bash
 # Real-ESRGAN (高质量)
-python3 /workspace/video_upscale_realesrgan.py \
-  /workspace/input.mp4 \
-  -o /workspace/output.mp4 \
+python3 handle_video/scripts/video_upscale_realesrgan.py \
+  input.mp4 \
+  -o output.mp4 \
   -s 4
 
 # 双三次插值 (快速)
-python3 /workspace/video_upscale_bicubic.py \
-  -i /workspace/input.mp4 \
-  -o /workspace/output.mp4 \
+python3 handle_video/scripts/video_upscale_bicubic.py \
+  -i input.mp4 \
+  -o output.mp4 \
   -s 4
 ```
 
 ### 步骤 2: 编码为 H.264
 
 ```bash
-ffmpeg -i /workspace/output.mp4 \
+ffmpeg -i output.mp4 \
   -c:v libx264 \
   -preset fast \
   -crf 23 \
   -c:a copy \
-  /workspace/output_h264.mp4
+  output_h264.mp4
 ```
 
 ### 步骤 3: 合并音频
 
 ```bash
-python3 /workspace/merge_audio.py \
-  -v /workspace/output_h264.mp4 \
-  -o /workspace/input.mp4 \
-  -out /workspace/output_final.mp4
+python3 handle_video/scripts/merge_audio.py \
+  -v output_h264.mp4 \
+  -o input.mp4 \
+  -out output_final.mp4
 ```
 
 ---
@@ -298,7 +308,54 @@ python3 /workspace/merge_audio.py -v output_h264.mp4 -o input.mp4 -out output_fi
 
 ---
 
-## 十一、GPU 硬件知识
+## 十一、Real-ESRGAN 多模型支持
+
+### 可用模型
+
+| 模型名称 | 放大倍数 | 参数量 | 特点 | 适用场景 |
+|---------|---------|--------|------|---------|
+| `RealESRGAN_x4plus` | 4x | 16.7M | 通用高质量 | 通用视频 |
+| `RealESRGAN_x2plus` | 2x | ~16M | 快速处理 | 低倍数放大 |
+| `RealESRGAN_x4plus_anime_6B` | 4x | 6B (约600万) | 动漫优化 | 动漫/插画 |
+
+### 模型选择建议
+
+```bash
+# 通用视频 x4 放大（质量最高）
+python3 handle_video/scripts/video_upscale_realesrgan.py input.mp4 -o output.mp4 -s 4 -m RealESRGAN_x4plus
+
+# 通用视频 x2 放大（速度更快）
+python3 handle_video/scripts/video_upscale_realesrgan.py input.mp4 -o output.mp4 -s 2 -m RealESRGAN_x2plus
+
+# 动漫视频 x4 放大
+python3 handle_video/scripts/video_upscale_realesrgan.py input.mp4 -o output.mp4 -s 4 -m RealESRGAN_x4plus_anime_6B
+```
+
+### 模型下载
+
+```bash
+# 下载 x2 模型
+wget -P handle_video/models https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x2plus.pth
+
+# 下载动漫模型
+wget -P handle_video/models https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus_anime_6B.pth
+```
+
+### Scale 与模型兼容性
+
+脚本会自动验证 `scale` 和 `model` 的兼容性：
+- `RealESRGAN_x4plus`: 支持 2x 或 4x
+- `RealESRGAN_x2plus`: 仅支持 2x
+- `RealESRGAN_x4plus_anime_6B`: 仅支持 4x
+
+不兼容的组合会报错：
+```
+ValueError: RealESRGAN_x2plus 模型只支持 [2]x 输出，不支持 4x
+```
+
+---
+
+## 十二、GPU 硬件知识
 
 ### 推理卡 vs 算力卡
 
@@ -324,7 +381,7 @@ python3 /workspace/merge_audio.py -v output_h264.mp4 -o input.mp4 -out output_fi
 
 ---
 
-## 十二、性能分析：Real-ESRGAN 处理 25 分钟视频
+## 十三、性能分析：Real-ESRGAN 处理 25 分钟视频
 
 ### 视频信息
 
@@ -392,7 +449,7 @@ output = rrdb_network(input)  # 50 TFLOPS/帧
 
 ---
 
-## 十三、CPU 处理 Real-ESRGAN 的时间
+## 十四、CPU 处理 Real-ESRGAN 的时间
 
 ### CPU vs GPU 性能对比
 
@@ -422,29 +479,35 @@ CPU 处理 Real-ESRGAN **完全不可行**：
 
 ---
 
-## 十四、中断处理和并行策略
+## 十五、中断处理和并行策略
 
-### 中断问题
+### 断点续传支持
 
-当前 `video_upscale_realesrgan.py` **不支持断点续传**。
+当前 `video_upscale_realesrgan.py` **支持断点续传**。
 
-### 解决方案
+#### 使用方法
 
-#### 方案 1: 帧级断点续传（推荐）
+```bash
+# 启用断点续传
+python handle_video/scripts/video_upscale_realesrgan.py input.mp4 -o output.mp4 -s 4 --resume
+```
 
-- 每处理 100 帧保存一次进度
-- 检测临时文件，从上次位置继续
-- 中断后重新运行，自动跳过已处理帧
+#### 工作原理
 
-#### 方案 2: 分段处理
+- 每处理 500 帧保存一次进度到 `.progress.json` 文件
+- 中断后重新运行，自动从上次位置继续
+- 处理完成后自动删除进度文件
 
+#### 方案 2: 分段处理（备选）
+
+如果断点续传不够可靠，可以考虑：
 - 将视频分成多个小段（每段 5000 帧）
-- 单独处理每段，处理完后合并
+- 单独处理每段，处理完后用 ffmpeg 合并
 - 某段中断只需重新处理该段
 
 ---
 
-## 十五、并行处理的局限性
+## 十六、并行处理的局限性
 
 ### 单 GPU 并行不能加速
 
@@ -497,7 +560,7 @@ RealESRGAN x4plus → RealESRGAN x2plus (2倍放大)
 
 ---
 
-## 十六、常见问题补充
+## 十七、常见问题补充
 
 ### Q5: 双三次插值处理需要多久？
 
@@ -517,7 +580,7 @@ RealESRGAN x4plus → RealESRGAN x2plus (2倍放大)
 **A**:
 ```bash
 # 检查进程
-ps aux | grep "video_upscale_realesrgan.py"
+ps aux | grep "handle_video/scripts/video_upscale_realesrgan.py"
 
 # 检查输出文件
 ls -lh output.mp4
@@ -525,9 +588,14 @@ ls -lh output.mp4
 # 如果只看到 grep 命令，说明处理已完成
 ```
 
-### Q8: 断点续传功能何时加入？
+### Q8: 如何使用断点续传？
 
-**A**: 需要修改 `video_upscale_realesrgan.py` 添加进度保存和恢复逻辑。
+**A**: 使用 `--resume` 参数即可：
+```bash
+python handle_video/scripts/video_upscale_realesrgan.py input.mp4 -o output.mp4 -s 4 --resume
+```
+
+进度会自动保存，中断后重新运行即可继续。
 
 ---
 

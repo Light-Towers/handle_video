@@ -127,23 +127,49 @@ wget -P models https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/R
 ### 使用脚本处理视频
 
 ```bash
-# 基本用法
-python scripts/video_upscale_realesrgan.py input.mp4 -o output.mp4 -s 4
+# Real-ESRGAN 基本用法（x4 放大）
+python handle_video/scripts/video_upscale_realesrgan.py input.mp4 -o output.mp4 -s 4
+
+# Real-ESRGAN x2 放大（更快）
+python handle_video/scripts/video_upscale_realesrgan.py input.mp4 -o output.mp4 -s 2 -m RealESRGAN_x2plus
+
+# Real-ESRGAN 动漫视频
+python handle_video/scripts/video_upscale_realesrgan.py input.mp4 -o output.mp4 -s 4 -m RealESRGAN_x4plus_anime_6B
 
 # 启用断点续传
-python scripts/video_upscale_realesrgan.py input.mp4 -o output.mp4 -s 4 --resume
+python handle_video/scripts/video_upscale_realesrgan.py input.mp4 -o output.mp4 -s 4 --resume
 ```
+
+### Real-ESRGAN 参数说明
+
+| 参数 | 说明 | 选项 | 默认值 |
+|------|------|------|--------|
+| `-s, --scale` | 放大倍数 | 2, 4 | 4 |
+| `-m, --model` | 模型选择 | RealESRGAN_x4plus, RealESRGAN_x2plus, RealESRGAN_x4plus_anime_6B | RealESRGAN_x4plus |
+| `--codec` | 视频编码器 | mp4v, MJPG, vp09 | mp4v |
+| `--tile-size` | 分块大小（0=不分块） | 0, 256, 512, 768, 1024 | 512 |
+| `--resume` | 启用断点续传 | - | - |
+
+**编码器说明**：
+- `mp4v`: MPEG-4 Visual（默认，兼容性好）
+- `MJPG`: MJPEG（无压缩，文件大，速度快）
+- `vp09`: VP9（压缩率高，Web 优化）
+
+**模型与 scale 兼容性**：
+- `RealESRGAN_x4plus`: 支持 2x 或 4x 输出
+- `RealESRGAN_x2plus`: 仅支持 2x 输出
+- `RealESRGAN_x4plus_anime_6B`: 仅支持 4x 输出
 
 ### 双三次插值处理
 
 ```bash
-python scripts/video_upscale_bicubic.py -i input.mp4 -o output.mp4 -s 4
+python handle_video/scripts/video_upscale_bicubic.py -i input.mp4 -o output.mp4 -s 4
 ```
 
 ### 音视频合并
 
 ```bash
-python scripts/merge_audio.py -v processed.mp4 -o original.mp4 -out final.mp4
+python handle_video/scripts/merge_audio.py -v processed.mp4 -o original.mp4 -out final.mp4
 ```
 
 ## 性能对比
