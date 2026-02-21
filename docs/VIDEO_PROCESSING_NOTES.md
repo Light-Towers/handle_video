@@ -260,6 +260,38 @@ python3 handle_video/scripts/merge_audio.py \
 1. **编码不兼容**: mp4v 编码浏览器不支持 → 使用 H.264
 2. **模型问题**: 未加载预训练权重 → 使用 Real-ESRGAN
 
+### Q2.1: 为什么有些视频处理 FPS 只有 0.3？
+
+**A**: RealESRGAN 处理速度受视频分辨率影响很大：
+
+| 视频分辨率 | 每帧像素数 | FPS (T4 GPU) | 说明 |
+|-----------|-----------|--------------|------|
+| 426x240 | 102,240 | ~1.5 | 标准测试视频 |
+| 720x576 | 414,720 | ~0.3 | 像素数是 4.26x240 的 4 倍，速度慢 4-5 倍 |
+
+**原因**：
+- RealESRGAN 是深度学习模型，计算量与像素数成正比
+- 720x576 放大 4 倍后是 2880x2304，每帧计算量巨大
+- 高分辨率视频建议：
+  1. 先截取短片段测试（如 5 秒）
+  2. 使用 x2 模型而不是 x4
+  3. 降低 tile_size 增加稳定性
+
+### Q2.2: scale 和 model 不匹配会怎样？
+
+**A**: `enhance(frame, outscale=X)` 的工作原理：
+1. 先用模型进行 AI 放大（由模型的 `scale` 决定）
+2. 然后用双三次插值调整到 `outscale` 倍
+
+| 模型 | 模型倍数 | 输出倍数 | 结果 |
+|------|---------|---------|------|
+| x4plus | 4 | 4 | ✓ 正常，AI 放大 4 倍 |
+| x2plus | 2 | 2 | ✓ 正常，AI 放大 2 倍 |
+| x4plus | 4 | 2 | ✗ 先 AI 放大 4 倍，再缩小（浪费） |
+| x2plus | 2 | 4 | ✗ 先 AI 放大 2 倍，再插值放大（质量差） |
+
+**解决方案**：脚本已添加兼容性验证，不匹配的组合会报错。
+
 ### Q3: 输出视频无声音？
 
 **A**: OpenCV 默认不处理音频 → 用 ffmpeg 合并。
@@ -270,6 +302,34 @@ python3 handle_video/scripts/merge_audio.py \
 1. 使用 `tile=256` 分块处理
 2. 开启 `half=True` 半精度推理
 3. 降低放大倍数（4x → 2x）
+4. 使用 x2plus 模型（参数量更少）
+5. 截取短视频测试效果后再处理完整视频
+
+### Q5: 视频编码器如何选择？
+
+**A**: 可用编码器对比：
+
+| 编码器 | 代码 | 兼容性 | 压缩率 | 速度 | 适用场景 |
+|--------|------|--------|--------|------|---------|
+| MPEG-4 Visual | mp4v | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ | 通用（默认） |
+| H.264 | avc1 | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | 高兼容性 |
+| H.265 | hevc | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐ | 高压缩率 |
+| MJPEG | MJPG | ⭐⭐⭐ | ⭐ | ⭐⭐⭐⭐⭐ | 无压缩，快速测试 |
+| VP9 | vp09 | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐ | Web 优化 |
+
+**当前系统支持**: `mp4v`, `MJPG`, `vp09`
+
+**选择建议**：
+```bash
+# 默认使用 mp4v（兼容性好）
+python3 handle_video/scripts/video_upscale_realesrgan.py input.mp4 -o output.mp4
+
+# 无压缩快速测试（文件大）
+python3 handle_video/scripts/video_upscale_realesrgan.py input.mp4 -o output.mp4 --codec MJPG
+
+# Web 优化（压缩率高）
+python3 handle_video/scripts/video_upscale_realesrgan.py input.mp4 -o output.mp4 --codec vp09
+```
 
 ---
 
@@ -604,3 +664,163 @@ python handle_video/scripts/video_upscale_realesrgan.py input.mp4 -o output.mp4 
 - Video2X: https://github.com/k4yt3x/video2x
 - Real-ESRGAN: https://github.com/xinntao/Real-ESRGAN
 - BasicSR: https://github.com/xinntao/BasicSR
+
+---
+
+## 十八、FFmpeg 视频截取技巧
+
+### 基本截取命令
+
+```bash
+# 截取前 30 秒
+ffmpeg -i input.mp4 -t 00:00:30 -c:v libx264 -c:a aac output_30s.mp4 -y
+
+# 截取前 5 秒
+ffmpeg -i input.mp4 -t 00:00:05 -c:v libx264 -c:a aac output_5s.mp4 -y
+
+# 从 00:01:00 开始截取 10 秒
+ffmpeg -i input.mp4 -ss 00:01:00 -t 00:00:10 -c:v libx264 -c:a aac output.mp4 -y
+```
+
+### 参数说明
+
+| 参数 | 说明 | 示例 |
+|------|------|------|
+| `-t` | 截取时长 | `-t 00:00:30`（30秒）或 `-t 30` |
+| `-ss` | 起始时间 | `-ss 00:01:00`（从1分钟开始） |
+| `-c:v libx264` | 视频编码为 H.264 | 兼容性好 |
+| `-c:a aac` | 音频编码为 AAC | 标准音频格式 |
+| `-y` | 覆盖输出文件 | 不提示确认 |
+
+### 实际案例
+
+从 24 分钟的视频（248 MB）截取测试视频：
+
+```bash
+# 原视频
+# 01 Gets Lost in Space.mp4
+# 分辨率: 720x576, 时长: 24分50秒, 大小: 248 MB
+
+# 截取前 30 秒（推荐用于测试）
+ffmpeg -i "01 Gets Lost in Space.mp4" -t 00:00:30 -c:v libx264 -c:a aac "01 Gets Lost in Space_test_30s.mp4" -y
+# 输出: 6.7 MB, 30 秒, 750 帧
+
+# 截取前 5 秒（快速测试）
+ffmpeg -i "01 Gets Lost in Space.mp4" -t 00:00:05 -c:v libx264 -c:a aac "01 Gets Lost in Space_test_5s.mp4" -y
+# 输出: 1.1 MB, 5 秒, 125 帧
+```
+
+### 为什么需要截取测试视频？
+
+RealESRGAN 处理速度受视频分辨率影响极大：
+
+| 视频 | 分辨率 | 帧数 | 预计处理时间 (x4) |
+|------|--------|------|-------------------|
+| 原视频（30秒） | 720x576 | 750 | ~25 分钟 |
+| 原视频（5秒） | 720x576 | 125 | ~4 分钟 |
+| 标准测试视频 | 426x240 | 456 | ~5 分钟 |
+
+**建议工作流程**：
+1. 先截取 5 秒测试视频
+2. 用 RealESRGAN 处理测试视频，检查效果
+3. 如果效果满意，再处理完整视频
+
+### 快速生成测试视频脚本
+
+```bash
+#!/bin/bash
+# 生成测试视频
+INPUT_VIDEO="$1"
+TEST_LENGTH="${2:-5}"  # 默认 5 秒
+
+if [ -z "$INPUT_VIDEO" ]; then
+    echo "用法: $0 <输入视频> [时长秒数]"
+    exit 1
+fi
+
+OUTPUT_VIDEO="${INPUT_VIDEO%.*}_test_${TEST_LENGTH}s.mp4"
+
+ffmpeg -i "$INPUT_VIDEO" \
+    -t "00:00:$TEST_LENGTH" \
+    -c:v libx264 \
+    -c:a aac \
+    "$OUTPUT_VIDEO" \
+    -y
+
+echo "测试视频已生成: $OUTPUT_VIDEO"
+```
+
+使用：
+```bash
+bash create_test_video.sh "01 Gets Lost in Space.mp4" 5
+```
+
+---
+
+## 十九、脚本更新日志
+
+### video_upscale_realesrgan.py 更新内容
+
+#### 2026-02-21 更新
+
+1. **模型初始化优化**
+   - 将模型初始化移到模型选择之后
+   - 根据不同模型名称设置对应的网络参数
+   - 添加 fallback 机制（models → .realesrgan）
+
+2. **多模型支持**
+   - 支持 `RealESRGAN_x4plus`（通用 x4）
+   - 支持 `RealESRGAN_x2plus`（通用 x2）
+   - 支持 `RealESRGAN_x4plus_anime_6B`（动漫专用 x4）
+
+3. **编码器选择**
+   - 新增 `--codec` 参数
+   - 支持 `mp4v`（默认）、`MJPG`、`vp09`
+
+4. **Scale/Model 兼容性验证**
+   - 验证 scale 和 model 是否兼容
+   - 不兼容的组合会报错
+
+5. **打印信息优化**
+   - 显示"模型倍数"和"输出倍数"两个信息
+   - 避免用户混淆
+
+6. **断点续传支持**
+   - 支持 `--resume` 参数
+   - 每 500 帧保存一次进度
+
+### 已知问题和解决方案
+
+#### 问题 1: Fallback 路径写死为 x4plus 模型
+
+**原问题**：
+```python
+if not Path(model_path).exists():
+    fallback_path = str(script_dir / '.realesrgan' / 'RealESRGAN_x4plus.pth')  # 写死
+    if Path(fallback_path).exists():
+        model_path = fallback_path
+        netscale = 4  # 写死
+```
+
+**已修复**：
+```python
+if not Path(model_path).exists():
+    fallback_path = str(script_dir / '.realesrgan' / f'{model_name}.pth')  # 动态
+    if Path(fallback_path).exists():
+        model_path = fallback_path
+    else:
+        raise FileNotFoundError(f"找不到模型文件: {model_path} 和 {fallback_path}")
+```
+
+#### 问题 2: 打印信息误导（显示模型倍数而非输出倍数）
+
+**原问题**：
+```python
+print(f"放大倍数: {netscale}")  # 显示模型内置倍数
+```
+
+**已修复**：
+```python
+print(f"模型倍数: {netscale}")
+print(f"输出倍数: {self.scale}")  # 显示用户指定的倍数
+```

@@ -204,6 +204,26 @@ python handle_video/scripts/merge_audio.py -v processed.mp4 -o original.mp4 -out
 
 详见 [VIDEO_PROCESSING_NOTES.md](docs/VIDEO_PROCESSING_NOTES.md)
 
+### 常见问题快速解答
+
+**Q: 为什么处理速度这么慢（FPS 只有 0.3）？**
+
+A: RealESRGAN 处理速度受视频分辨率影响很大。426x240 分辨率可以达到 1.5 FPS，而 720x576 分辨率只有 0.3 FPS（像素数是前者的 4 倍）。
+
+**Q: 可以混合使用不同模型和倍数吗？**
+
+A: 不可以。脚本会验证兼容性：
+- `RealESRGAN_x4plus`: 支持 2x 或 4x
+- `RealESRGAN_x2plus`: 仅支持 2x
+- `RealESRGAN_x4plus_anime_6B`: 仅支持 4x
+
+**Q: 如何选择视频编码器？**
+
+A:
+- `mp4v`（默认）: 兼容性最好
+- `MJPG`: 无压缩，文件大，速度快
+- `vp09`: 压缩率高，Web 优化
+
 ### 已知兼容性问题
 
 #### torchvision 版本兼容性
