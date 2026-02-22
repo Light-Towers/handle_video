@@ -46,6 +46,7 @@ ENV/
 *.webp
 
 # Model weights
+models/
 *.pth
 *.pth.onnx
 
