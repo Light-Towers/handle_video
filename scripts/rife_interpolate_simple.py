@@ -26,20 +26,22 @@ class RIFEInterpolator:
             torch.backends.cudnn.enabled = True
             torch.backends.cudnn.benchmark = True
 
-        # 加载模型
+        # 加载模型 - 把 model_dir 添加到 Python 路径
+        sys.path.insert(0, str(model_dir))
+
         try:
-            from model.RIFE_HDv2 import Model
+            from RIFE_HDv3 import Model
             self.model = Model()
             self.model.load_model(model_dir, -1)
-            print("Loaded v2.x HD model.")
+            print("Loaded v3.x HD model.")
         except:
             try:
-                from train_log.RIFE_HDv3 import Model
+                from RIFE_HDv2 import Model
                 self.model = Model()
                 self.model.load_model(model_dir, -1)
-                print("Loaded v3.x HD model.")
+                print("Loaded v2.x HD model.")
             except:
-                from model.RIFE_HD import Model
+                from RIFE_HD import Model
                 self.model = Model()
                 self.model.load_model(model_dir, -1)
                 print("Loaded v1.x HD model")
