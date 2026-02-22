@@ -49,6 +49,7 @@ ENV/
 models/
 *.pth
 *.pth.onnx
+*.pkl
 
 # Progress files
 *.progress.json

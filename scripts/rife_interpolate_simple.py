@@ -70,7 +70,7 @@ def main():
     parser = argparse.ArgumentParser(description='RIFE Video Interpolation')
     parser.add_argument('--video', type=str, required=True, help='Input video path')
     parser.add_argument('--output', type=str, help='Output video path')
-    parser.add_argument('--model-dir', type=str, default='/workspace/handle_video/models/rife', help='Model directory')
+    parser.add_argument('--model-dir', type=str, default='/workspace/handle_video/RIFE/train_log', help='Model directory containing flownet.pkl')
     parser.add_argument('--exp', type=int, default=1, help='2^exp interpolation')
     parser.add_argument('--scale', type=float, default=1.0, help='Process scale')
     parser.add_argument('--fps', type=int, default=None, help='Target FPS')
