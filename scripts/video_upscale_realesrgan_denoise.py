@@ -9,6 +9,7 @@ import torch
 import numpy as np
 from realesrgan import RealESRGANer
 from basicsr.archs.rrdbnet_arch import RRDBNet
+from realesrgan.archs.srvgg_arch import SRVGGNetCompact
 import argparse
 import time
 import os
@@ -58,6 +59,14 @@ class RealESRGANDenoiser:
             num_feat = 64
             num_block = 6
             num_grow_ch = 32
+        elif model_name == 'realesr-animevideov3':
+            model_path = str(script_dir / 'models' / 'realesr-animevideov3.pth')
+            netscale = 4
+            num_in_ch = 3
+            num_out_ch = 3
+            num_feat = 64
+            num_conv = 16
+            use_srvgg = True
         else:
             raise ValueError(f"不支持的模型: {model_name}")
 
@@ -70,9 +79,26 @@ class RealESRGANDenoiser:
                 raise FileNotFoundError(f"找不到模型文件: {model_path} 和 {fallback_path}")
 
         # 初始化模型
-        model = RRDBNet(num_in_ch=num_in_ch, num_out_ch=num_out_ch,
-                       num_feat=num_feat, num_block=num_block,
-                       num_grow_ch=num_grow_ch, scale=netscale)
+        if 'use_srvgg' in locals() and use_srvgg:
+            # realesr-animevideov3 使用 SRVGGNetCompact
+            model = SRVGGNetCompact(
+                num_in_ch=num_in_ch,
+                num_out_ch=num_out_ch,
+                num_feat=num_feat,
+                num_conv=num_conv,
+                upscale=netscale,
+                act_type='prelu'
+            )
+        else:
+            # 其他模型使用 RRDBNet
+            model = RRDBNet(
+                num_in_ch=num_in_ch,
+                num_out_ch=num_out_ch,
+                num_feat=num_feat,
+                num_block=num_block,
+                num_grow_ch=num_grow_ch,
+                scale=netscale
+            )
 
         # 创建 Real-ESRGAN 处理器
         actual_tile = self.tile_size if self.tile_size > 0 else 0
@@ -83,7 +109,7 @@ class RealESRGANDenoiser:
             tile=actual_tile,
             tile_pad=10,
             pre_pad=0,
-            half=True,
+            half=False,  # 禁用 FP16 避免精度损失
             device=torch.device('cuda' if self.use_cuda else 'cpu')
         )
 
@@ -113,17 +139,19 @@ class RealESRGANDenoiser:
 
     def process_frame(self, frame):
         """处理单帧图像（去噪 + 超分辨率）"""
+        # 转换为 RGB（RealESRGAN 期望 RGB 输入）
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
         # 先去噪
-        denoised = self.denoise_frame(frame)
+        denoised = self.denoise_frame(frame_rgb)
 
         # 超分辨率
         output, _ = self.upsampler.enhance(denoised, outscale=self.scale)
 
-        # 后处理锐化
-        if self.scale > 2:
-            output = self.sharpen_frame(output, strength=0.2)
+        # 转换回 BGR（OpenCV 期望 BGR 输出）
+        output_bgr = cv2.cvtColor(output, cv2.COLOR_RGB2BGR)
 
-        return output
+        return output_bgr
 
     def process_video(self, input_path, output_path, show_progress=True):
         """处理视频"""
@@ -188,7 +216,7 @@ def main():
                        choices=[2, 4], help='放大倍数 (2, 4)')
     parser.add_argument('-m', '--model', type=str, default='RealESRGAN_x4plus',
                        choices=['RealESRGAN_x4plus', 'RealESRGAN_x2plus',
-                               'RealESRGAN_x4plus_anime_6B'],
+                               'RealESRGAN_x4plus_anime_6B', 'realesr-animevideov3'],
                        help='模型名称')
     parser.add_argument('--no-cuda', action='store_true', help='禁用 CUDA')
     parser.add_argument('--tile-size', type=int, default=512,
