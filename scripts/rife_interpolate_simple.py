@@ -10,7 +10,7 @@ import argparse
 from pathlib import Path
 import sys
 
-# 添加 RIFE 模型路径
+# 添加 RIFE 模型路径 - 需要指向 RIFE 目录，因为模型依赖其中的 model 和 train_log 模块
 rife_path = Path(__file__).parent.parent / 'RIFE'
 sys.path.insert(0, str(rife_path))
 
@@ -26,22 +26,20 @@ class RIFEInterpolator:
             torch.backends.cudnn.enabled = True
             torch.backends.cudnn.benchmark = True
 
-        # 加载模型 - 把 model_dir 添加到 Python 路径
-        sys.path.insert(0, str(model_dir))
-
+        # 加载模型 - 使用 train_log.RIFE_HDv3 导入
         try:
-            from RIFE_HDv3 import Model
+            from train_log.RIFE_HDv3 import Model
             self.model = Model()
             self.model.load_model(model_dir, -1)
             print("Loaded v3.x HD model.")
         except:
             try:
-                from RIFE_HDv2 import Model
+                from model.RIFE_HDv2 import Model
                 self.model = Model()
                 self.model.load_model(model_dir, -1)
                 print("Loaded v2.x HD model.")
             except:
-                from RIFE_HD import Model
+                from model.RIFE_HD import Model
                 self.model = Model()
                 self.model.load_model(model_dir, -1)
                 print("Loaded v1.x HD model")
