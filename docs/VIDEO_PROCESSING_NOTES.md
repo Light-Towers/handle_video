@@ -659,6 +659,352 @@ python handle_video/scripts/video_upscale_realesrgan.py input.mp4 -o output.mp4 
 
 ---
 
+## 二十、视频处理知识点总结
+
+### 一、超分辨率（超分）
+
+#### 核心概念
+- **目的**：提升视频分辨率和清晰度
+- **原理**：AI 模型从低分辨率恢复高分辨率细节
+
+#### 常用模型
+
+| 模型 | 特点 | 速度 | 适用场景 |
+|------|------|------|---------|
+| realesr-animevideov3 | 体积小(2.39MB)，专用于动漫 | 快 ⚡ | 动漫视频 |
+| RealESRGAN_x4plus | 通用模型 | 中等 | 通用视频 |
+| RealESRGAN_x4plus_anime_6B | 动漫专用，效果好 | 慢 | 动漫视频 |
+
+#### 基本命令（使用去噪脚本）
+
+```bash
+python video_upscale_realesrgan_denoise.py \
+  input.mkv \
+  -o output.mp4 \
+  -m realesr-animevideov3 \
+  --denoise 0 \
+  --tile-size 0
+```
+
+#### 参数说明
+
+| 参数 | 说明 | 推荐值 |
+|------|------|--------|
+| `-m` | 模型选择 | realesr-animevideov3（动漫） |
+| `--denoise` | 去噪强度 (0-1) | 0（让模型自己处理） |
+| `--tile-size` | 分块大小 | 0（显存足够时最快） |
+| `-s` | 放大倍数 | 4（默认） |
+
+#### 去噪参数详解
+
+| 值 | 效果 |
+|-----|------|
+| 0 | 不去噪（推荐用于清晰源视频） |
+| 0.3 | 轻度去噪 |
+| 0.5 | 默认值，中等去噪 |
+| 1.0 | 强去噪（适合噪点多的视频） |
+
+**注意**：Real-ESRGAN 本身自带去噪能力，通常建议 `--denoise 0`。
+
+#### 性能优化
+
+| tile-size | 速度 | 显存占用 |
+|-----------|------|---------|
+| 0 | 最快 | 最高 |
+| 256 | 中等 | 中等 |
+| 512 | 较慢 | 较低 |
+
+---
+
+### 二、插帧（补帧）
+
+#### 核心概念
+- **目的**：提高视频帧率，使画面更流畅
+- **原理**：在两帧之间生成中间帧
+
+#### 帧率倍数
+
+| exp 值 | 补帧倍数 | 示例 |
+|--------|---------|------|
+| 1 | 2x | 25 fps → 50 fps |
+| 2 | 4x | 25 fps → 100 fps |
+| 3 | 8x | 25 fps → 200 fps |
+
+#### 时长计算公式
+
+```
+输出时长 = 输入时长 × (原帧率 / 输出帧率) × 2^exp
+```
+
+#### 关键规则
+
+⚠️ **输出帧率必须是原帧率的整数倍**
+
+| 原帧率 | 补帧倍数 | 正确输出帧率 | 错误输出帧率 |
+|--------|---------|-------------|-------------|
+| 25 fps | 2x | 50 fps | 60 fps ❌ |
+| 30 fps | 2x | 60 fps | 50 fps ❌ |
+
+如果原视频是 25fps，补帧后应该是 50fps，时长保持不变。
+
+#### 基本命令
+
+```bash
+python rife_interpolate_simple.py \
+  --video input.mp4 \
+  --output output.mp4 \
+  --model-dir /path/to/model
+  # 不指定 --fps，自动保持时长
+```
+
+#### 注意事项
+
+- RIFE 补帧脚本**不会保留音频**，需要用 ffmpeg 添加
+- 不指定 `--fps` 时，输出帧率 = 原帧率 × 2^exp
+
+---
+
+### 三、音频处理
+
+#### 音频格式兼容性
+
+| 格式 | MKV | MP4 | 直接拷贝 |
+|------|-----|-----|---------|
+| AAC | ✅ | ✅ | ✅ |
+| MP3 | ✅ | ✅ | ✅ |
+| AC3 | ✅ | ❌ | ❌ 需转码 |
+| DTS | ✅ | ❌ | ❌ 需转码 |
+| FLAC | ✅ | ❌ | ❌ 需转码 |
+
+#### 音频格式对比
+
+| 格式 | 效率 | 压缩率 | 用途 |
+|------|------|--------|------|
+| AAC | 高 | 1:10-15 | MP4、流媒体 |
+| MP3 | 中等 | 1:10 | 通用音乐 |
+| AC3 | 中等 | 1:10 | DVD、影院 |
+| FLAC | 无损 | 1:2 | 高保真音乐 |
+
+#### AC3 vs AAC 对比
+
+| 特性 | AC3 (Dolby Digital) | AAC (Advanced Audio Coding) |
+|------|---------------------|---------------------------|
+| 开发者 | Dolby Laboratories | Fraunhofer IIS, Apple 等 |
+| MP4 支持 | ❌ 不支持 | ✅ 原生支持 |
+| 最高声道数 | 5.1 | 48 |
+| 编码效率 | 中等 | **更高（同质量比特率更低）** |
+| 同音质所需比特率 | 192 kbps | 96-128 kbps |
+
+**AAC 效率约为 AC3 的 1.5-2 倍。**
+
+#### 转码命令（AC3 → AAC）
+
+```bash
+# 从原视频添加音频
+ffmpeg -i output.mp4 \
+  -i input.mkv \
+  -c:v copy \
+  -c:a aac \
+  -b:a 192k \
+  -ar 48000 \
+  -map 0:v:0 \
+  -map 1:a:0 \
+  -shortest \
+  output_audio.mp4 \
+  -y
+```
+
+#### 参数说明
+
+| 参数 | 说明 |
+|------|------|
+| `-c:a aac` | 转码为 AAC（MP4 容器兼容） |
+| `-b:a 192k` | 保持原始比特率 192 kbps |
+| `-ar 48000` | 保持原始采样率 48000 Hz |
+
+#### 音质影响
+
+AC3 192k → AAC 192k：音质相同或更好，体积不变或更小。
+
+---
+
+### 四、视频编码
+
+#### H.264 vs H.265 对比
+
+| 特性 | H.264 (AVC) | H.265 (HEVC) |
+|------|-------------|--------------|
+| 发布年份 | 2003 | 2013 |
+| 编码效率 | 基准 | **高 30-50%** |
+| 压缩比 | 1:50-100 | 1:100-200 |
+| 兼容性 | **几乎所有设备** | 部分旧设备不支持 |
+| 编码速度 | 快 | 慢 2-5 倍 |
+| 解码要求 | 低 | 较高 |
+
+#### H.265 CRF 质量控制
+
+| CRF 值 | 质量 | 文件大小 | 适用场景 |
+|--------|------|---------|---------|
+| 18-23 | 极高，接近无损 | 大 | 存档、专业用途 |
+| **23-28** | **良好，视觉无损** | **中等** | **推荐值** |
+| 28-32 | 中等，可接受 | 小 | 网络传播 |
+| 32+ | 明显压缩 | 很小 | 预览、带宽受限 |
+
+#### Preset 编码速度
+
+| Preset | 编码速度 | 压缩效率 | 编码时间 |
+|--------|---------|---------|---------|
+| ultrafast | 极快 | 低 | 最短 |
+| fast | 快 | 中等 | 短 |
+| **medium** | **中等** | **良好** | **推荐** |
+| slow | 慢 | 高 | 长 |
+| veryslow | 很慢 | 最高 | 很长 |
+
+#### 推荐设置
+
+| 场景 | CRF | Preset |
+|------|-----|--------|
+| 最高质量 | 23-24 | medium/slow |
+| **推荐设置** | **28** | **medium** |
+| 小体积 | 30-32 | fast |
+
+#### 编码工作流
+
+```bash
+# 1. 超分（H.264 快速编码）
+python video_upscale_realesrgan_denoise.py ... -o temp.mp4
+
+# 2. 添加音频
+ffmpeg -i temp.mp4 -i input.mkv -c:v copy -c:a aac ... temp_audio.mp4
+
+# 3. （可选）转码 H.265
+ffmpeg -i temp_audio.mp4 -c:v libx265 -crf 28 -preset medium -c:a copy output.mp4
+```
+
+#### 为什么不建议超分时转码？
+
+1. **质量损失问题**：超分已经编码了一次，转码是第二次编码，质量会再次损失
+2. **处理时间更长**：H.265 编码比 H.264 慢 2-5 倍
+3. **显存占用高**：超分需要大量 GPU，同时进行 H.265 编码可能导致显存不足
+
+**先 H.264 → 后 H.265** 的优势：
+- 超分速度快
+- 质量可控（转码时用 CRF 精确控制）
+- 灵活性高（可以跳过转码）
+
+---
+
+### 五、容器格式
+
+| 格式 | 视频编码 | 音频编码 | 用途 |
+|------|---------|---------|------|
+| MP4 | H.264, H.265 | AAC, MP3 | 通用、兼容性好 |
+| MKV | 几乎所有 | 几乎所有 | 存储、高清 |
+| WebM | VP8, VP9 | Opus | 网络流媒体 |
+| AVI | H.264, XviD | MP3, AC3 | 旧式兼容 |
+| MOV | H.264, ProRes | AAC | Apple 生态 |
+
+---
+
+### 六、常见问题汇总
+
+#### Q1: 超分后没有音频？
+**原因**：脚本只处理视频帧  
+**解决**：用 ffmpeg 添加音频
+
+#### Q2: 补帧后时长变化？
+**原因**：输出帧率不是原帧率整数倍  
+**解决**：不指定 `--fps`，自动计算
+
+```
+错误示例：原视频 25fps，补帧 2x，指定 --fps 60
+→ 输出时长 = 输入时长 × (25/60) × 2 = 输入时长 × 0.833（变短）
+
+正确做法：不指定 --fps，输出 50fps
+→ 输出时长不变
+```
+
+#### Q3: MKV 音频无法直接放入 MP4？
+**原因**：AC3/DTS 等 MP4 不支持  
+**解决**：转码为 AAC
+
+检查音频格式：
+```bash
+ffprobe -v error -select_streams a:0 -show_entries stream=codec_name \
+  -of default=noprint_wrappers=1:nokey=1 input.mkv
+```
+
+#### Q4: 超分速度慢？
+**解决**：
+- 使用 `--tile-size 0`（显存足够时）
+- 选择 realesr-animevideov3 模型（最快）
+- 使用更快的 GPU
+
+#### Q5: 不建议在超分时转码 H.265？
+**原因**：
+1. 质量累积损失（编码2次）
+2. 处理时间长（H.265 慢 2-5 倍）
+3. 显存占用高
+
+**建议**：先 H.264 超分，再用 ffmpeg 后处理转 H.265。
+
+---
+
+### 七、完整工作流示例
+
+```bash
+# 1. 超分辨率
+python handle_video/scripts/video_upscale_realesrgan_denoise.py \
+  "/workspace/videos/03 Inside Ralphie.mkv" \
+  -o /workspace/videos/03_Inside_Ralphie_animevideov3.mp4 \
+  -m realesr-animevideov3 \
+  --denoise 0 \
+  --tile-size 0
+
+# 2. 添加音频
+ffmpeg -i /workspace/videos/03_Inside_Ralphie_animevideov3.mp4 \
+  -i "/workspace/videos/03 Inside Ralphie.mkv" \
+  -c:v copy \
+  -c:a aac -b:a 192k \
+  -map 0:v:0 -map 1:a:0 -shortest \
+  /workspace/videos/03_Inside_Ralphie_final.mp4 \
+  -y
+
+# 3. （可选）转码 H.265
+ffmpeg -i /workspace/videos/03_Inside_Ralphie_final.mp4 \
+  -c:v libx265 -crf 28 -preset medium \
+  -c:a copy \
+  /workspace/videos/03_Inside_Ralphie_final_h265.mp4 \
+  -y
+
+# 4. （可选）插帧
+python handle_video/scripts/rife_interpolate_simple.py \
+  --video /workspace/videos/03_Inside_Ralphie_final.mp4 \
+  --output /workspace/videos/03_Inside_Ralphie_rife.mp4 \
+  --model-dir /path/to/RIFE/train_log
+
+# 5. （可选）给插帧视频添加音频
+ffmpeg -i /workspace/videos/03_Inside_Ralphie_rife.mp4 \
+  -i /workspace/videos/03_Inside_Ralphie_final.mp4 \
+  -c:v copy -c:a copy -map 0:v:0 -map 1:a:0 -shortest \
+  /workspace/videos/03_Inside_Ralphie_rife_audio.mp4 \
+  -y
+```
+
+---
+
+### 八、快速参考
+
+| 任务 | 推荐设置 |
+|------|---------|
+| 动漫超分 | realesr-animevideov3, --denoise 0, --tile-size 0 |
+| 通用超分 | RealESRGAN_x4plus, --denoise 0.5 |
+| 插帧 | 不指定 --fps，让自动计算 |
+| 音频转码 | AAC, 192 kbps |
+| H.265 编码 | CRF 28, preset medium |
+
+---
+
 ## 附录: 相关链接
 
 - Video2X: https://github.com/k4yt3x/video2x
