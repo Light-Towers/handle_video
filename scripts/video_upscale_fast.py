@@ -235,12 +235,12 @@ def copy_audio(input_path, temp_video_path, output_path):
 
 
 def process_video_fast(input_path, output_path, scale=4, model_name='realesr-animevideov3',
-                      use_cuda=True, tile_size=0, num_workers=4, copy_audio=True):
+                      use_cuda=True, tile_size=0, num_workers=4, copy_audio_flag=True):
     """使用多线程流水线快速处理视频"""
 
     print(f"\n{'='*60}")
     print(f"多线程视频超分辨率处理")
-    if copy_audio:
+    if copy_audio_flag:
         print(f"(音频拷贝: 启用)")
     print(f"{'='*60}\n")
 
@@ -268,7 +268,7 @@ def process_video_fast(input_path, output_path, scale=4, model_name='realesr-ani
     out_height = height * scale
 
     # 如果需要拷贝音频，先输出到临时文件
-    if copy_audio:
+    if copy_audio_flag:
         temp_dir = tempfile.gettempdir()
         temp_filename = f"temp_video_{os.getpid()}_{time.time()}.mp4"
         temp_video_path = os.path.join(temp_dir, temp_filename)
@@ -377,7 +377,7 @@ def process_video_fast(input_path, output_path, scale=4, model_name='realesr-ani
     print(f"{'='*60}")
 
     # 拷贝音频
-    if copy_audio:
+    if copy_audio_flag:
         audio_success = copy_audio(input_path, temp_video_path, output_path)
         if audio_success:
             # 删除临时文件
@@ -422,7 +422,7 @@ def main():
         use_cuda=not args.no_cuda,
         tile_size=args.tile,
         num_workers=args.workers,
-        copy_audio=not args.no_audio
+        copy_audio_flag=not args.no_audio
     )
 
 
