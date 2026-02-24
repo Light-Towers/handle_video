@@ -339,9 +339,22 @@ def process_video_fast(input_path, output_path, scale=4, model_name='realesr-ani
                 last_update_time = current_time
                 last_count = current_count
 
+        # 额外检查：如果 reader 完成且输出队列为空，强制退出
+        if not reader_thread.is_alive() and output_queue.empty():
+            print(f"\n检测到所有帧已处理完成")
+            # 发送结束信号到输出队列，让 writer 线程可以退出
+            for _ in range(num_workers + 1):
+                output_queue.put(None)
+            break
+
     # 等待所有线程完成
     for worker in worker_threads:
         worker.join()
+
+    # 所有 worker 完成后，发送结束信号到输出队列
+    print(f"\n正在发送结束信号...")
+    for _ in range(num_workers + 1):  # 确保有足够多的结束信号
+        output_queue.put(None)
 
     writer_thread.join()
     reader_thread.join()
