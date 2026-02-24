@@ -429,10 +429,25 @@ def process_video_fast(input_path, output_path, scale=4, model_name='realesr-ani
     print(f"{'='*60}\n")
 
 
+def process_single_video(input_path, output_path, scale, model_name, use_cuda, tile_size, num_workers, copy_audio_flag):
+    """处理单个视频"""
+    os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)
+    process_video_fast(
+        input_path=input_path,
+        output_path=output_path,
+        scale=scale,
+        model_name=model_name,
+        use_cuda=use_cuda,
+        tile_size=tile_size,
+        num_workers=num_workers,
+        copy_audio_flag=copy_audio_flag
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description='Real-ESRGAN 视频超分辨率 - 多线程优化版 (支持音频拷贝)')
-    parser.add_argument('input', type=str, help='输入视频路径')
-    parser.add_argument('-o', '--output', type=str, help='输出视频路径')
+    parser.add_argument('input', type=str, help='输入视频路径或文件夹')
+    parser.add_argument('-o', '--output', type=str, help='输出视频路径或文件夹')
     parser.add_argument('-s', '--scale', type=int, default=4, choices=[2, 4], help='放大倍数')
     parser.add_argument('-n', '--model', type=str, default='realesr-animevideov3',
                        choices=['realesr-animevideov3', 'RealESRGAN_x4plus_anime_6B'], help='模型名称')
@@ -443,22 +458,88 @@ def main():
 
     args = parser.parse_args()
 
-    if args.output is None:
-        input_path = Path(args.input)
-        args.output = str(input_path.parent / f"{input_path.stem}_{args.model}_enhanced{input_path.suffix}")
+    input_path = Path(args.input)
 
-    os.makedirs(os.path.dirname(args.output) or '.', exist_ok=True)
+    # 判断是文件还是文件夹
+    if input_path.is_file():
+        # 处理单个文件
+        if args.output is None:
+            args.output = str(input_path.parent / f"{input_path.stem}_{args.model}_enhanced{input_path.suffix}")
 
-    process_video_fast(
-        input_path=args.input,
-        output_path=args.output,
-        scale=args.scale,
-        model_name=args.model,
-        use_cuda=not args.no_cuda,
-        tile_size=args.tile,
-        num_workers=args.workers,
-        copy_audio_flag=not args.no_audio
-    )
+        print(f"处理单个文件: {args.input}")
+        process_single_video(
+            input_path=args.input,
+            output_path=args.output,
+            scale=args.scale,
+            model_name=args.model,
+            use_cuda=not args.no_cuda,
+            tile_size=args.tile,
+            num_workers=args.workers,
+            copy_audio_flag=not args.no_audio
+        )
+
+    elif input_path.is_dir():
+        # 处理整个文件夹
+        output_dir = Path(args.output) if args.output else input_path / "output"
+
+        # 支持的视频格式
+        video_extensions = {'.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.webm'}
+
+        # 查找所有视频文件
+        video_files = []
+        for ext in video_extensions:
+            video_files.extend(input_path.glob(f"*{ext}"))
+            video_files.extend(input_path.glob(f"*{ext.upper()}"))
+
+        if not video_files:
+            print(f"✗ 在文件夹 {input_path} 中未找到视频文件")
+            return
+
+        print(f"\n{'='*60}")
+        print(f"批量处理视频")
+        print(f"{'='*60}")
+        print(f"输入文件夹: {input_path}")
+        print(f"输出文件夹: {output_dir}")
+        print(f"找到 {len(video_files)} 个视频文件")
+        print(f"{'='*60}\n")
+
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # 处理每个视频
+        success_count = 0
+        fail_count = 0
+
+        for idx, video_file in enumerate(video_files, 1):
+            output_file = output_dir / f"{video_file.stem}_{args.model}_enhanced{video_file.suffix}"
+
+            print(f"\n[{idx}/{len(video_files)}] 处理: {video_file.name}")
+
+            try:
+                process_single_video(
+                    input_path=str(video_file),
+                    output_path=str(output_file),
+                    scale=args.scale,
+                    model_name=args.model,
+                    use_cuda=not args.no_cuda,
+                    tile_size=args.tile,
+                    num_workers=args.workers,
+                    copy_audio_flag=not args.no_audio
+                )
+                success_count += 1
+                print(f"✓ 完成: {video_file.name}")
+            except Exception as e:
+                fail_count += 1
+                print(f"✗ 失败: {video_file.name} - {e}")
+
+        print(f"\n\n{'='*60}")
+        print(f"批量处理完成!")
+        print(f"{'='*60}")
+        print(f"成功: {success_count}/{len(video_files)}")
+        print(f"失败: {fail_count}/{len(video_files)}")
+        print(f"{'='*60}\n")
+
+    else:
+        print(f"✗ 输入路径不存在: {args.input}")
 
 
 if __name__ == '__main__':
