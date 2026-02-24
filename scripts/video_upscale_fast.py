@@ -480,7 +480,7 @@ def main():
 
     elif input_path.is_dir():
         # 处理整个文件夹
-        output_dir = Path(args.output) if args.output else input_path / "output"
+        output_dir = Path(args.output) if args.output else input_path / "ai"
 
         # 支持的视频格式
         video_extensions = {'.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.webm'}
@@ -510,7 +510,8 @@ def main():
         fail_count = 0
 
         for idx, video_file in enumerate(video_files, 1):
-            output_file = output_dir / f"{video_file.stem}_{args.model}_enhanced{video_file.suffix}"
+            # 输出文件名与原文件名一致
+            output_file = output_dir / video_file.name
 
             print(f"\n[{idx}/{len(video_files)}] 处理: {video_file.name}")
 
