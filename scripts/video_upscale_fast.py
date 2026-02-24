@@ -2,6 +2,7 @@
 """
 Real-ESRGAN 视频超分辨率 - 多线程优化版本
 使用多线程流水线提高 GPU 利用率
+支持音频拷贝
 """
 
 import cv2
@@ -17,6 +18,8 @@ from pathlib import Path
 from queue import Queue
 from threading import Thread, Lock
 import queue
+import subprocess
+import tempfile
 
 
 class VideoProcessor:
@@ -168,12 +171,77 @@ class VideoProcessorThread(Thread):
                 self.input_queue.task_done()
 
 
+def copy_audio(input_path, temp_video_path, output_path):
+    """
+    使用 ffmpeg 将源视频的音频拷贝到处理后的视频中
+    直接流拷贝，不重新编码
+
+    Args:
+        input_path: 原始输入视频路径
+        temp_video_path: 处理后的临时视频路径（无音频）
+        output_path: 最终输出路径（带音频）
+    """
+    print(f"\n正在拷贝音频...")
+
+    # 检查原始视频是否有音频
+    probe_cmd = [
+        'ffprobe', '-v', 'error', '-select_streams', 'a',
+        '-show_entries', 'stream=codec_type', '-of', 'csv=p=0', input_path
+    ]
+    result = subprocess.run(probe_cmd, capture_output=True, text=True)
+
+    has_audio = result.returncode == 0 and 'audio' in result.stdout
+    print(f"  源视频音频: {'存在' if has_audio else '无'}")
+
+    # 如果没有音频，直接重命名临时文件
+    if not has_audio:
+        try:
+            os.replace(temp_video_path, output_path)
+            print(f"✓ 无音频，直接使用处理后的视频")
+            return True
+        except Exception as e:
+            print(f"✗ 文件重命名失败: {e}")
+            return False
+
+    # 有音频：直接流拷贝，不重新编码
+    # MP4 容器支持 AC3 音频，可以直接拷贝
+    cmd = [
+        'ffmpeg',
+        '-i', temp_video_path,        # 处理后的视频（无音频）
+        '-i', input_path,             # 原始视频（有音频）
+        '-c:v', 'copy',              # 复制视频流，不重新编码
+        '-c:a', 'copy',              # 复制音频流，不重新编码（MP4 支持 AC3）
+        '-map', '0:v:0',            # 使用第一个文件的视频流
+        '-map', '1:a:0',            # 使用第二个文件的第一个音频流
+        '-y',                        # 覆盖输出文件
+        output_path
+    ]
+
+    try:
+        # 执行命令
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        print(f"✓ 音频拷贝完成")
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"✗ 音频拷贝失败: {e.stderr}")
+        # 如果音频拷贝失败，直接重命名临时文件为最终输出
+        try:
+            os.replace(temp_video_path, output_path)
+            print(f"✗ 音频拷贝失败，使用无音频版本")
+            return False
+        except Exception as e2:
+            print(f"✗ 文件重命名也失败: {e2}")
+            return False
+
+
 def process_video_fast(input_path, output_path, scale=4, model_name='realesr-animevideov3',
-                      use_cuda=True, tile_size=0, num_workers=4):
+                      use_cuda=True, tile_size=0, num_workers=4, copy_audio=True):
     """使用多线程流水线快速处理视频"""
 
     print(f"\n{'='*60}")
     print(f"多线程视频超分辨率处理")
+    if copy_audio:
+        print(f"(音频拷贝: 启用)")
     print(f"{'='*60}\n")
 
     # 初始化处理器
@@ -199,8 +267,18 @@ def process_video_fast(input_path, output_path, scale=4, model_name='realesr-ani
     out_width = width * scale
     out_height = height * scale
 
-    print(f"\n输出视频信息:")
-    print(f"  路径: {output_path}")
+    # 如果需要拷贝音频，先输出到临时文件
+    if copy_audio:
+        temp_dir = tempfile.gettempdir()
+        temp_filename = f"temp_video_{os.getpid()}_{time.time()}.mp4"
+        temp_video_path = os.path.join(temp_dir, temp_filename)
+        print(f"\n输出视频信息:")
+        print(f"  临时路径: {temp_video_path} (无音频)")
+        print(f"  最终路径: {output_path} (带音频)")
+    else:
+        temp_video_path = output_path
+        print(f"\n输出视频信息:")
+        print(f"  路径: {output_path}")
     print(f"  分辨率: {out_width}x{out_height}")
     print(f"  帧率: {fps} FPS")
 
@@ -210,7 +288,7 @@ def process_video_fast(input_path, output_path, scale=4, model_name='realesr-ani
 
     # 创建输出视频写入器
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    writer = cv2.VideoWriter(output_path, fourcc, fps, (out_width, out_height))
+    writer = cv2.VideoWriter(temp_video_path, fourcc, fps, (out_width, out_height))
 
     # 启动线程
     reader_thread = VideoReaderThread(cap, input_queue, max_queue_size=32)
@@ -275,17 +353,34 @@ def process_video_fast(input_path, output_path, scale=4, model_name='realesr-ani
     final_avg_fps = total_frames / total_elapsed if total_elapsed > 0 else 0
 
     print(f"\n\n{'='*60}")
-    print(f"✓ 处理完成!")
+    print(f"✓ 视频处理完成!")
     print(f"{'='*60}")
-    print(f"  输出: {output_path}")
+    print(f"  临时输出: {temp_video_path}")
     print(f"  输出分辨率: {out_width}x{out_height}")
     print(f"  平均 FPS: {final_avg_fps:.2f}")
     print(f"  总耗时: {total_elapsed:.2f}s ({total_elapsed/60:.1f}min)")
+    print(f"{'='*60}")
+
+    # 拷贝音频
+    if copy_audio:
+        audio_success = copy_audio(input_path, temp_video_path, output_path)
+        if audio_success:
+            # 删除临时文件
+            try:
+                os.remove(temp_video_path)
+                print(f"✓ 临时文件已删除: {temp_video_path}")
+            except Exception as e:
+                print(f"⚠ 临时文件删除失败: {e}")
+
+    print(f"\n{'='*60}")
+    print(f"✓ 全部完成!")
+    print(f"{'='*60}")
+    print(f"  最终输出: {output_path}")
     print(f"{'='*60}\n")
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Real-ESRGAN 视频超分辨率 - 多线程优化版')
+    parser = argparse.ArgumentParser(description='Real-ESRGAN 视频超分辨率 - 多线程优化版 (支持音频拷贝)')
     parser.add_argument('input', type=str, help='输入视频路径')
     parser.add_argument('-o', '--output', type=str, help='输出视频路径')
     parser.add_argument('-s', '--scale', type=int, default=4, choices=[2, 4], help='放大倍数')
@@ -294,6 +389,7 @@ def main():
     parser.add_argument('--no-cuda', action='store_true', help='禁用 CUDA')
     parser.add_argument('-t', '--tile', type=int, default=0, help='Tile 大小 (0=不分块)')
     parser.add_argument('-w', '--workers', type=int, default=4, help='工作线程数量')
+    parser.add_argument('--no-audio', action='store_true', help='不拷贝源音频')
 
     args = parser.parse_args()
 
@@ -310,7 +406,8 @@ def main():
         model_name=args.model,
         use_cuda=not args.no_cuda,
         tile_size=args.tile,
-        num_workers=args.workers
+        num_workers=args.workers,
+        copy_audio=not args.no_audio
     )
 
 
