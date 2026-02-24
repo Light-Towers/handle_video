@@ -106,16 +106,22 @@ class VideoProcessor:
 
 
 class VideoReaderThread(Thread):
-    def __init__(self, cap, frame_queue, max_queue_size=32):
+    def __init__(self, cap, frame_queue, max_queue_size=32, writer_thread=None):
         super().__init__()
         self.cap = cap
         self.frame_queue = frame_queue
         self.max_queue_size = max_queue_size
         self.frame_count = 0
+        self.writer_thread = writer_thread  # 写入线程引用,用于检查缓冲区
         self.daemon = True
 
     def run(self):
         while True:
+            # 如果写入缓冲区满了,暂停读取
+            if self.writer_thread and self.writer_thread.is_buffer_full():
+                time.sleep(0.1)
+                continue
+
             if self.frame_queue.qsize() < self.max_queue_size:
                 ret, frame = self.cap.read()
                 if not ret:
@@ -130,12 +136,14 @@ class VideoReaderThread(Thread):
 
 
 class VideoWriterThread(Thread):
-    def __init__(self, writer, output_queue):
+    def __init__(self, writer, output_queue, max_buffer_size=100):
         super().__init__()
         self.writer = writer
         self.output_queue = output_queue
         self.buffer = {}  # 帧缓冲区 {idx: frame}
         self.next_idx = 0  # 下一个要写入的帧索引
+        self.max_buffer_size = max_buffer_size  # 最大缓冲帧数
+        self.buffer_full = False  # 缓冲区是否已满
         self.daemon = True
 
     def run(self):
@@ -151,7 +159,20 @@ class VideoWriterThread(Thread):
                 self.writer.write(self.buffer.pop(self.next_idx))
                 self.next_idx += 1
 
+            # 检查缓冲区大小
+            buffer_size = len(self.buffer)
+            if buffer_size > self.max_buffer_size and not self.buffer_full:
+                print(f"\n⚠ 缓冲区接近上限 ({buffer_size}/{self.max_buffer_size}),等待慢帧处理完成...")
+                self.buffer_full = True
+            elif buffer_size < self.max_buffer_size // 2 and self.buffer_full:
+                print(f"\n✓ 缓冲区恢复 ({buffer_size}/{self.max_buffer_size})")
+                self.buffer_full = False
+
             self.output_queue.task_done()
+
+    def is_buffer_full(self):
+        """检查缓冲区是否已满"""
+        return len(self.buffer) > self.max_buffer_size
 
 
 class VideoProcessorThread(Thread):
@@ -298,9 +319,15 @@ def process_video_fast(input_path, output_path, scale=4, model_name='realesr-ani
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     writer = cv2.VideoWriter(temp_video_path, fourcc, fps, (out_width, out_height))
 
+    # 根据总帧数动态调整缓冲区大小:至少 100,最多 1000
+    max_buffer_size = min(1000, max(100, total_frames // 100))
+    print(f"  写入缓冲区大小: {max_buffer_size} 帧")
+
     # 启动线程
-    reader_thread = VideoReaderThread(cap, input_queue, max_queue_size=32)
-    writer_thread = VideoWriterThread(writer, output_queue)
+    reader_thread = VideoReaderThread(cap, input_queue, max_queue_size=32, writer_thread=None)
+    writer_thread = VideoWriterThread(writer, output_queue, max_buffer_size=max_buffer_size)
+    # 设置 reader 的 writer 引用
+    reader_thread.writer_thread = writer_thread
 
     worker_threads = []
     for i in range(num_workers):
