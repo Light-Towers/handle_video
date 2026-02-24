@@ -134,6 +134,8 @@ class VideoWriterThread(Thread):
         super().__init__()
         self.writer = writer
         self.output_queue = output_queue
+        self.buffer = {}  # 帧缓冲区 {idx: frame}
+        self.next_idx = 0  # 下一个要写入的帧索引
         self.daemon = True
 
     def run(self):
@@ -142,7 +144,13 @@ class VideoWriterThread(Thread):
             if item is None:
                 break
             idx, frame = item
-            self.writer.write(frame)
+            self.buffer[idx] = frame
+
+            # 按顺序写入可用的帧
+            while self.next_idx in self.buffer:
+                self.writer.write(self.buffer.pop(self.next_idx))
+                self.next_idx += 1
+
             self.output_queue.task_done()
 
 
