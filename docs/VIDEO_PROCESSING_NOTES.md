@@ -834,8 +834,88 @@ print(f"输出倍数: {self.scale}")  # 显示用户指定的倍数
 
 ---
 
+## 附录 G: RIFE 项目知识
+
+### 项目概述
+
+**RIFE** (Real-Time Intermediate Flow Estimation) 是一个开源的视频帧插值（补帧）项目。
+
+| 项目信息 | 说明 |
+|---------|------|
+| 论文 | *Real-Time Intermediate Flow Estimation for Video Frame Interpolation* |
+| 发表 | ECCV 2022 |
+| 作者 | 黄周 (hzwer) 等，Megvii Research（旷视科技） |
+| GitHub | https://github.com/hzwer/ECCV2022-RIFE |
+| 许可证 | MIT License |
+| 当前环境版本 | v3.x HD (HDv3) |
+
+### 核心原理
+
+在两帧之间通过光流估计生成中间帧：
+- 输入：相邻两帧 (img0, img1)
+- 输出：`2^exp - 1` 张插值帧
+- exp=1：2x 补帧（每对帧间生成 1 帧）
+- exp=2：4x 补帧（每对帧间生成 3 帧）
+
+### 模型来源：预训练模型，非自训练
+
+`train_log/flownet.pkl` 是从 RIFE 官方下载的**预训练模型权重**，不是自己训练的。
+
+> README 原文：*Download the pretrained HD models from Google Drive / 百度网盘，把压缩包解开后放在 train_log/\**
+
+- 文件大小：约 12 MB
+- 发布时间：2021年6月（RIFE v3 发布日期）
+- 训练需要 Vimeo90K 完整数据集 + 4×GPU + 300 epoch，本地环境不满足
+
+### train_log 目录说明
+
+| 路径 | 用途 |
+|------|------|
+| `/workspace/handle_video/RIFE/train_log/` | ✅ **正确位置**，项目实际加载的模型目录 |
+| `/workspace/train_log/` | ❌ 冗余副本，可删除，不影响功能 |
+
+所有脚本通过 `from train_log.RIFE_HDv3 import Model` 导入，python 路径指向 `handle_video/RIFE/`，因此实际使用的是子目录下的 `train_log/`。
+
+### 版本演进
+
+| 版本 | 仓库 | 状态 |
+|------|------|------|
+| v3.x (HDv3) | [ECCV2022-RIFE](https://github.com/hzwer/ECCV2022-RIFE) | 当前环境使用，学术版本 |
+| v4.x | [Practical-RIFE](https://github.com/hzwer/Practical-RIFE) | 实用增强版，**动漫场景优化** |
+
+Practical-RIFE 的改进：
+- 针对动漫场景大量优化（v4.20+）
+- 提供 Lite 版（计算量更小）
+- 集成 SAFA 视频增强
+- 持续更新（最新 v4.26，2024.09）
+
+### 为什么 RIFE 不保留音频
+
+RIFE 底层使用 OpenCV（`cv2.VideoCapture` / `cv2.VideoWriter`）读写视频：
+- `cv2.VideoCapture` 只读取视频帧像素，不支持音频流
+- `cv2.VideoWriter` 只写入纯视频，fourcc 编码器不包含音频
+- 因此 RIFE 输出的视频永远是无声的，必须用 ffmpeg 额外合并音频
+
+### 补帧与视频时长
+
+- 不指定 `--fps`：输出帧率 = 原帧率 × 2^exp，**时长不变**
+- 指定 `--fps`：输出帧率 = 指定值，总帧数由补帧倍数确定，时长可能改变
+- 推荐：不传 `--fps` 参数，让脚本自动计算，保持原时长
+
+### 为什么官方用网盘而非 Hugging Face 分发模型
+
+RIFE 发布于 2020 年底（arXiv），那时 Hugging Face 主要聚焦 NLP，视频/视觉模型生态还未成熟。
+- 中国团队，主力用户在国内 → 百度网盘下载比 Hugging Face 快
+- 作者已补上 Hugging Face：`https://huggingface.co/HZWER/RIFE`（2025年发布）
+- 旧版网盘链接保留兼容老用户
+
+---
+
 ## 附录: 相关链接
 
+- RIFE: https://github.com/hzwer/ECCV2022-RIFE
+- Practical-RIFE: https://github.com/hzwer/Practical-RIFE
+- RIFE HuggingFace: https://huggingface.co/HZWER/RIFE
 - Video2X: https://github.com/k4yt3x/video2x
 - Real-ESRGAN: https://github.com/xinntao/Real-ESRGAN
 - BasicSR: https://github.com/xinntao/BasicSR
@@ -884,9 +964,11 @@ print(f"输出倍数: {self.scale}")  # 显示用户指定的倍数
 
 ### RIFE 补帧注意事项
 
-- RIFE 补帧脚本**不会保留音频**，需要用 ffmpeg 添加
+- RIFE 补帧脚本**不会保留音频**（OpenCV 限制），需要用 ffmpeg 最后一次性添加
 - 不指定 `--fps` 时，输出帧率 = 原帧率 × 2^exp，时长保持不变
 - 指定 `--fps 60` 但原帧率是 25fps 时，时长会压缩到 83.3%
+- **模型路径**：`/workspace/handle_video/RIFE/train_log`
+- **正确流程**：超分 → 补帧 → 最后合音频（只合一次，不要在超分后中间合）
 
 ### 基本命令
 
@@ -943,10 +1025,18 @@ python rife_interpolate_simple.py \
 
 ---
 
-## 附录 E: 完整工作流示例
+## 附录 E: 完整工作流示例（优化版）
+
+### ⚠️ 重要：音频只需要合并一次！
+
+因为超分和 RIFE 补帧都只处理视频帧，不保留音频。所以**在所有视频处理完成后，最后一次性合并音频即可**，无需中间合。
 
 ```bash
-# 1. 超分辨率（使用去噪脚本）
+# =============================================
+# 流程：超分 → 补帧 → 合音频
+# =============================================
+
+# 1. 超分辨率（输出无声视频）
 python handle_video/scripts/video_upscale_realesrgan_denoise.py \
   "/workspace/videos/03 Inside Ralphie.mkv" \
   -o /workspace/videos/03_Inside_Ralphie_animevideov3.mp4 \
@@ -954,8 +1044,14 @@ python handle_video/scripts/video_upscale_realesrgan_denoise.py \
   --denoise 0 \
   --tile-size 0
 
-# 2. 添加音频（AC3 → AAC 转码）
-ffmpeg -i /workspace/videos/03_Inside_Ralphie_animevideov3.mp4 \
+# 2. （可选）插帧（直接用超分后的无声视频，无需先合音频）
+python handle_video/scripts/rife_interpolate_simple.py \
+  --video /workspace/videos/03_Inside_Ralphie_animevideov3.mp4 \
+  --output /workspace/videos/03_Inside_Ralphie_rife.mp4 \
+  --model-dir /workspace/handle_video/RIFE/train_log
+
+# 3. 一次性合并音频（从原始视频取音频）
+ffmpeg -i /workspace/videos/03_Inside_Ralphie_rife.mp4 \
   -i "/workspace/videos/03 Inside Ralphie.mkv" \
   -c:v copy \
   -c:a aac -b:a 192k \
@@ -963,26 +1059,24 @@ ffmpeg -i /workspace/videos/03_Inside_Ralphie_animevideov3.mp4 \
   /workspace/videos/03_Inside_Ralphie_final.mp4 \
   -y
 
-# 3. （可选）转码 H.265
+# 4. （可选）转码 H.265
 ffmpeg -i /workspace/videos/03_Inside_Ralphie_final.mp4 \
   -c:v libx265 -crf 28 -preset medium \
   -c:a copy \
   /workspace/videos/03_Inside_Ralphie_final_h265.mp4 \
   -y
-
-# 4. （可选）插帧
-python handle_video/scripts/rife_interpolate_simple.py \
-  --video /workspace/videos/03_Inside_Ralphie_final.mp4 \
-  --output /workspace/videos/03_Inside_Ralphie_rife.mp4 \
-  --model-dir /path/to/RIFE/train_log
-
-# 5. （可选）给插帧视频添加音频
-ffmpeg -i /workspace/videos/03_Inside_Ralphie_rife.mp4 \
-  -i /workspace/videos/03_Inside_Ralphie_final.mp4 \
-  -c:v copy -c:a copy -map 0:v:0 -map 1:a:0 -shortest \
-  /workspace/videos/03_Inside_Ralphie_rife_audio.mp4 \
-  -y
 ```
+
+### 流程对比
+
+| 步骤 | 旧流程（有冗余） | 新流程（优化） |
+|------|-----------------|---------------|
+| ① 超分 | 输出无声视频 | 输出无声视频 |
+| ② 合音频 | ❌ 中间合一次（会被 RIFE 丢掉） | **跳过** |
+| ③ RIFE 补帧 | 输出又变无声 | 直接用无声视频补帧 |
+| ④ 合音频 | 再合一次 | ✅ **只合一次** |
+
+> 原因：超分和 RIFE 底层都用 OpenCV 处理视频，OpenCV 不支持音频轨道，输出永远是无声的。在中间步骤合进去的音频到了下一步又会丢失，纯属浪费。
 
 ---
 
