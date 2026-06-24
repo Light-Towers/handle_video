@@ -1,7 +1,7 @@
 import re
 
 # 读取 ASS 文件
-with open('/workspace/台词/srt/01 Gets Lost in Space.ass', 'r', encoding='utf-8') as f:
+with open('/workspace/data/台词/srt/01 Gets Lost in Space.ass', 'r', encoding='utf-8') as f:
     content = f.read()
 
 # 提取所有高亮的单词

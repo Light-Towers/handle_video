@@ -56,8 +56,8 @@ def save_text(text_lines, output_file):
 
 def main():
     # 输入和输出文件路径
-    srt_file = '/workspace/videos/04 Gets Eaten.srt'
-    output_file = '/workspace/videos/04 Gets Eaten.txt'
+    srt_file = '/workspace/data/videos/04 Gets Eaten.srt'
+    output_file = '/workspace/data/videos/04 Gets Eaten.txt'
 
     print(f"正在读取字幕文件: {srt_file}")
     text_lines = extract_text_from_srt(srt_file)

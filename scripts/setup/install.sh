@@ -9,7 +9,7 @@
 set -e  # 遇到错误立即退出
 
 # 获取脚本所在目录
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 MODEL_DIR="$SCRIPT_DIR/models"
 RED='\033[0;31m'
 GREEN='\033[0;32m'

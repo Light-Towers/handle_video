@@ -1,5 +1,5 @@
 # 读取SRT文件
-with open('/workspace/台词/srt/01 Gets Lost in Space.srt', 'r', encoding='utf-8') as f:
+with open('/workspace/data/台词/srt/01 Gets Lost in Space.srt', 'r', encoding='utf-8') as f:
     content = f.read()
 
 # 应用所有修改
@@ -47,7 +47,7 @@ for old, new in replacements:
     content = content.replace(old, new)
 
 # 保存修改后的文件
-with open('/workspace/台词/srt/01 Gets Lost in Space.srt', 'w', encoding='utf-8') as f:
+with open('/workspace/data/台词/srt/01 Gets Lost in Space.srt', 'w', encoding='utf-8') as f:
     f.write(content)
 
 print("SRT文件修改完成")

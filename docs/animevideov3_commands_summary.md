@@ -7,8 +7,8 @@
 ```bash
 cd /workspace/handle_video/scripts
 python video_upscale_realesrgan_denoise.py \
-  /workspace/videos/01\ Gets\ Lost\ in\ Space_test_2m20s.mp4 \
-  -o /workspace/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_only.mp4 \
+  /workspace/data/videos/01\ Gets\ Lost\ in\ Space_test_2m20s.mp4 \
+  -o /workspace/data/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_only.mp4 \
   -m realesr-animevideov3 \
   --denoise 0
 ```
@@ -23,14 +23,14 @@ python video_upscale_realesrgan_denoise.py \
 ### 2. 添加音频到增强后的视频
 
 ```bash
-ffmpeg -i /workspace/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_only.mp4 \
-  -i /workspace/videos/01\ Gets\ Lost\ in\ Space_test_2m20s.mp4 \
+ffmpeg -i /workspace/data/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_only.mp4 \
+  -i /workspace/data/videos/01\ Gets\ Lost\ in\ Space_test_2m20s.mp4 \
   -c:v copy \
   -c:a aac \
   -map 0:v:0 \
   -map 1:a:0 \
   -shortest \
-  /workspace/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_only_audio.mp4 \
+  /workspace/data/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_only_audio.mp4 \
   -y
 ```
 
@@ -50,8 +50,8 @@ ffmpeg -i /workspace/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_on
 ```bash
 cd /workspace/handle_video/scripts
 python rife_interpolate_simple.py \
-  --video /workspace/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_audio.mp4 \
-  --output /workspace/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_rife.mp4 \
+  --video /workspace/data/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_audio.mp4 \
+  --output /workspace/data/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_rife.mp4 \
   --model-dir /workspace/handle_video/RIFE/train_log \
   --scale 0.5
 ```
@@ -67,14 +67,14 @@ python rife_interpolate_simple.py \
 ### 4. 为 RIFE 补帧后的视频添加音频
 
 ```bash
-ffmpeg -i /workspace/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_rife.mp4 \
-  -i /workspace/videos/01\ Gets\ Lost\ in\ Space_test_2m20s.mp4 \
+ffmpeg -i /workspace/data/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_rife.mp4 \
+  -i /workspace/data/videos/01\ Gets\ Lost\ in\ Space_test_2m20s.mp4 \
   -c:v copy \
   -c:a aac \
   -map 0:v:0 \
   -map 1:a:0 \
   -shortest \
-  /workspace/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_rife_final.mp4 \
+  /workspace/data/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_rife_final.mp4 \
   -y
 ```
 
@@ -88,31 +88,31 @@ ffmpeg -i /workspace/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_ri
 # 步骤1: 使用 realesr-animevideov3 进行超分
 cd /workspace/handle_video/scripts && \
 python video_upscale_realesrgan_denoise.py \
-  /workspace/videos/01\ Gets\ Lost\ in\ Space_test_2m20s.mp4 \
-  -o /workspace/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_only.mp4 \
+  /workspace/data/videos/01\ Gets\ Lost\ in\ Space_test_2m20s.mp4 \
+  -o /workspace/data/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_only.mp4 \
   -m realesr-animevideov3 \
   --denoise 0
 
 # 步骤2: 添加音频
-ffmpeg -i /workspace/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_only.mp4 \
-  -i /workspace/videos/01\ Gets\ Lost\ in\ Space_test_2m20s.mp4 \
+ffmpeg -i /workspace/data/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_only.mp4 \
+  -i /workspace/data/videos/01\ Gets\ Lost\ in\ Space_test_2m20s.mp4 \
   -c:v copy -c:a aac -map 0:v:0 -map 1:a:0 -shortest \
-  /workspace/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_audio.mp4 \
+  /workspace/data/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_audio.mp4 \
   -y
 
 # 步骤3: RIFE 补帧
 cd /workspace/handle_video/scripts && \
 python rife_interpolate_simple.py \
-  --video /workspace/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_audio.mp4 \
-  --output /workspace/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_rife.mp4 \
+  --video /workspace/data/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_audio.mp4 \
+  --output /workspace/data/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_rife.mp4 \
   --model-dir /workspace/handle_video/RIFE/train_log \
   --scale 0.5
 
 # 步骤4: 最终添加音频
-ffmpeg -i /workspace/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_rife.mp4 \
-  -i /workspace/videos/01\ Gets\ Lost\ in\ Space_test_2m20s.mp4 \
+ffmpeg -i /workspace/data/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_rife.mp4 \
+  -i /workspace/data/videos/01\ Gets\ Lost\ in\ Space_test_2m20s.mp4 \
   -c:v copy -c:a aac -map 0:v:0 -map 1:a:0 -shortest \
-  /workspace/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_rife_final.mp4 \
+  /workspace/data/videos/01\ Gets\ Lost\ in\ Space_test_2m20s_animevideov3_rife_final.mp4 \
   -y
 ```
 
@@ -213,8 +213,8 @@ python video_upscale_realesrgan_denoise.py \
 - `/workspace/handle_video/RIFE/train_log/` (RIFE 模型)
 
 **输入输出：**
-- 输入: `/workspace/videos/01 Gets Lost in Space_test_2m20s.mp4`
-- 输出: `/workspace/videos/01 Gets Lost in Space_test_2m20s_*.mp4`
+- 输入: `/workspace/data/videos/01 Gets Lost in Space_test_2m20s.mp4`
+- 输出: `/workspace/data/videos/01 Gets Lost in Space_test_2m20s_*.mp4`
 
 ---
 

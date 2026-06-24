@@ -1,7 +1,7 @@
 import re
 
 # 读取文件
-with open('/workspace/台词/srt/01 Gets Lost in Space.ass', 'r', encoding='utf-8') as f:
+with open('/workspace/data/台词/srt/01 Gets Lost in Space.ass', 'r', encoding='utf-8') as f:
     lines = f.readlines()
 
 # 需要标记为红色的词汇（按长度降序排序，避免部分匹配）
@@ -60,7 +60,7 @@ for line in lines:
     result_lines.append(clean_line)
 
 # 保存文件
-with open('/workspace/台词/srt/01 Gets Lost in Space.ass', 'w', encoding='utf-8') as f:
+with open('/workspace/data/台词/srt/01 Gets Lost in Space.ass', 'w', encoding='utf-8') as f:
     f.writelines(result_lines)
 
 print("完成！已删除所有颜色标记并给指定词汇添加红色标记")

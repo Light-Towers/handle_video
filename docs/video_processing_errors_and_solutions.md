@@ -158,16 +158,16 @@ echo "file '/path/to/file2.mkv'" >> /tmp/list.txt
 ### 步骤1：为OP和ED添加静音音频
 ```bash
 # 为OP添加静音音频
-ffmpeg -i "/workspace/videos/ai/op_intro_fixed.mkv" \
+ffmpeg -i "/workspace/data/videos/ai/op_intro_fixed.mkv" \
   -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000 \
   -c:v copy -c:a ac3 -b:a 128k -shortest \
-  "/workspace/videos/ai/op_intro_with_audio.mkv"
+  "/workspace/data/videos/ai/op_intro_with_audio.mkv"
 
 # 为ED添加静音音频（3个）
-ffmpeg -i "/workspace/videos/ai/ed_1_fixed.mkv" \
+ffmpeg -i "/workspace/data/videos/ai/ed_1_fixed.mkv" \
   -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000 \
   -c:v copy -c:a ac3 -b:a 128k -shortest \
-  "/workspace/videos/ai/ed_1_with_audio.mkv"
+  "/workspace/data/videos/ai/ed_1_with_audio.mkv"
 
 # ed_2 和 ed_3 同理
 ```
@@ -181,16 +181,16 @@ ffmpeg -i "/workspace/videos/ai/ed_1_fixed.mkv" \
 ```bash
 # 创建文件列表
 cat > /tmp/final_merge.txt << 'EOF'
-file '/workspace/videos/ai/op_intro_with_audio.mkv'
-file '/workspace/videos/ai/01 Gets Lost in Space_with_subs.mkv'
-file '/workspace/videos/ai/ed_1_with_audio.mkv'
-file '/workspace/videos/ai/ed_2_with_audio.mkv'
-file '/workspace/videos/ai/ed_3_with_audio.mkv'
+file '/workspace/data/videos/ai/op_intro_with_audio.mkv'
+file '/workspace/data/videos/ai/01 Gets Lost in Space_with_subs.mkv'
+file '/workspace/data/videos/ai/ed_1_with_audio.mkv'
+file '/workspace/data/videos/ai/ed_2_with_audio.mkv'
+file '/workspace/data/videos/ai/ed_3_with_audio.mkv'
 EOF
 
 # 合并视频
 ffmpeg -f concat -safe 0 -i /tmp/final_merge.txt \
-  -c copy "/workspace/videos/ai/01 Gets Lost in Space_Final.mkv" -y
+  -c copy "/workspace/data/videos/ai/01 Gets Lost in Space_Final.mkv" -y
 ```
 
 **关键点**：
@@ -201,7 +201,7 @@ ffmpeg -f concat -safe 0 -i /tmp/final_merge.txt \
 ### 步骤3：验证最终视频
 ```bash
 # 检查视频信息
-ffprobe -v error -show_format -show_streams "/workspace/videos/ai/01 Gets Lost in Space_Final.mkv"
+ffprobe -v error -show_format -show_streams "/workspace/data/videos/ai/01 Gets Lost in Space_Final.mkv"
 
 # 确认以下信息：
 # - nb_streams=2（1视频+1音频）

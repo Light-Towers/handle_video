@@ -1,7 +1,7 @@
 import re
 
 # 读取文件
-with open('/workspace/台词/srt/01 Gets Lost in Space.ass', 'r', encoding='utf-8') as f:
+with open('/workspace/data/台词/srt/01 Gets Lost in Space.ass', 'r', encoding='utf-8') as f:
     content = f.read()
 
 # 需要标记为红色的词汇（按长度降序排序）
@@ -464,7 +464,7 @@ for word in sorted(red_words, key=len, reverse=True):
     content = re.sub(pattern, r'{\\1c&H0000FF\\b1}' + word + r'{\\r}', content)
 
 # 保存文件
-with open('/workspace/台词/srt/01 Gets Lost in Space.ass', 'w', encoding='utf-8') as f:
+with open('/workspace/data/台词/srt/01 Gets Lost in Space.ass', 'w', encoding='utf-8') as f:
     f.write(content)
 
 print(f"完成！")

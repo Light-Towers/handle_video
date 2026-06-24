@@ -1038,32 +1038,32 @@ python rife_interpolate_simple.py \
 
 # 1. 超分辨率（输出无声视频）
 python handle_video/scripts/video_upscale_realesrgan_denoise.py \
-  "/workspace/videos/03 Inside Ralphie.mkv" \
-  -o /workspace/videos/03_Inside_Ralphie_animevideov3.mp4 \
+  "/workspace/data/videos/03 Inside Ralphie.mkv" \
+  -o /workspace/data/videos/03_Inside_Ralphie_animevideov3.mp4 \
   -m realesr-animevideov3 \
   --denoise 0 \
   --tile-size 0
 
 # 2. （可选）插帧（直接用超分后的无声视频，无需先合音频）
 python handle_video/scripts/rife_interpolate_simple.py \
-  --video /workspace/videos/03_Inside_Ralphie_animevideov3.mp4 \
-  --output /workspace/videos/03_Inside_Ralphie_rife.mp4 \
+  --video /workspace/data/videos/03_Inside_Ralphie_animevideov3.mp4 \
+  --output /workspace/data/videos/03_Inside_Ralphie_rife.mp4 \
   --model-dir /workspace/handle_video/RIFE/train_log
 
 # 3. 一次性合并音频（从原始视频取音频）
-ffmpeg -i /workspace/videos/03_Inside_Ralphie_rife.mp4 \
-  -i "/workspace/videos/03 Inside Ralphie.mkv" \
+ffmpeg -i /workspace/data/videos/03_Inside_Ralphie_rife.mp4 \
+  -i "/workspace/data/videos/03 Inside Ralphie.mkv" \
   -c:v copy \
   -c:a aac -b:a 192k \
   -map 0:v:0 -map 1:a:0 -shortest \
-  /workspace/videos/03_Inside_Ralphie_final.mp4 \
+  /workspace/data/videos/03_Inside_Ralphie_final.mp4 \
   -y
 
 # 4. （可选）转码 H.265
-ffmpeg -i /workspace/videos/03_Inside_Ralphie_final.mp4 \
+ffmpeg -i /workspace/data/videos/03_Inside_Ralphie_final.mp4 \
   -c:v libx265 -crf 28 -preset medium \
   -c:a copy \
-  /workspace/videos/03_Inside_Ralphie_final_h265.mp4 \
+  /workspace/data/videos/03_Inside_Ralphie_final_h265.mp4 \
   -y
 ```
 

@@ -4,7 +4,7 @@ import re
 from collections import Counter
 
 # 读取 SRT 文件
-with open('/workspace/台词/srt/01 Gets Lost in Space.srt', 'r', encoding='utf-8') as f:
+with open('/workspace/data/台词/srt/01 Gets Lost in Space.srt', 'r', encoding='utf-8') as f:
     content = f.read()
 
 # 提取纯文本内容

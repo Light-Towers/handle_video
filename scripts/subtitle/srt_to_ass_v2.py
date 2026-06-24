@@ -237,8 +237,8 @@ def convert_srt_to_ass(srt_content):
 
 def main():
     # 输入和输出文件路径
-    srt_file = '/workspace/台词/srt/01 Gets Lost in Space.srt'
-    ass_file = '/workspace/台词/srt/01 Gets Lost in Space.ass'
+    srt_file = '/workspace/data/台词/srt/01 Gets Lost in Space.srt'
+    ass_file = '/workspace/data/台词/srt/01 Gets Lost in Space.ass'
     keyword_file = '/workspace/keywords.json'
 
     print("=" * 60)

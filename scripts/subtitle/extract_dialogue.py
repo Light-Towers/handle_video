@@ -41,8 +41,8 @@ def extract_dialogue_from_srt(srt_file_path):
 
 def main():
     # 输入和输出文件路径
-    srt_file = '/workspace/台词/srt/01 Gets Lost in Space.srt'
-    output_file = '/workspace/台词/txt/01 Gets Lost in Space_dialogue.txt'
+    srt_file = '/workspace/data/台词/srt/01 Gets Lost in Space.srt'
+    output_file = '/workspace/data/台词/txt/01 Gets Lost in Space_dialogue.txt'
 
     print(f"正在读取字幕文件: {srt_file}")
     text_lines = extract_dialogue_from_srt(srt_file)
